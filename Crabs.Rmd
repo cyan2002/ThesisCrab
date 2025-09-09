@@ -1,0 +1,152 @@
+Uploading Files into R and Adding appropriate libraries
+```{R}
+library(ggplot2)
+setwd("/Users/chanceyan/Documents/R/ThesisCrab")
+crabdata <- read.csv("Feeding.csv", h=T)
+master <- read.csv("Master.csv", h=T)
+```
+
+We need to clean up the data first to use it.
+
+```{R}
+crabdata$FoodIn <- as.numeric(as.character(crabdata$FoodIn))
+crabdata$FoodOut <- as.numeric(as.character(crabdata$FoodOut))
+
+for(i in 1:nrow(crabdata)){
+  if(!is.numeric(crabdata[i,4])){
+    crabdata <- crabdata[-i,]
+  }
+  if(!is.numeric(crabdata[i,6])){
+    crabdata <- crabdata[-i,]
+  }
+}
+
+#Creating number IDs for each crab based of their IDs so it's easier to loop through with future code. Also I'm adding a total eaten by proportion column, so we have a fair metric to compare by.
+
+for(i in 1:36){
+  master$num[[i]] <- substr(master$ID[[i]], 3,5)
+}
+
+crabdata$amount.eaten <- crabdata$FoodIn-crabdata$FoodOut
+all <- merge(crabdata, master, by="ID")
+all$proportion.eaten <- (all$amount.eaten / all$WW)
+#Changing date column into a date data type, so that R can read it as a Date.
+all$Date.x = as.Date(all$Date.x, format = "%m/%d/%Y")
+
+#This code will graph each individual
+#for(i in 1:36){
+#  craby <- subset(all, all$num == i)
+#  graph <- ggplot(aes(x = as.factor(Date.x), y = proportion.eaten), data = craby) + geom_point() + ggtitle(craby$ID)
+#  print(graph)
+#}
+```
+
+Graping each individual clearly.
+```{R}
+craby <- subset(all, all$Species.x == "CI")
+ggplot(craby, aes(x = Date.x, y = proportion.eaten, color = ID, group = ID)) +
+  geom_point() +
+  geom_line() + 
+  facet_wrap(~Trial.x)
+
+craby <- subset(all, all$Species.x == "CM")
+ggplot(craby, aes(x = Date.x, y = proportion.eaten, color = ID, group = ID)) +
+  geom_point() +
+  geom_line() + 
+  facet_wrap(~Trial.x)
+
+craby <- subset(all, all$Species.x == "HS")
+ggplot(craby, aes(x = Date.x, y = proportion.eaten, color = ID, group = ID)) +
+  geom_point() +
+  geom_line() + 
+  facet_wrap(~Trial.x)
+
+#Graping everyone
+holddf <- subset(all, Trial.x == "16")
+ggplot(holddf, aes(x = as.factor(Date.x), y = proportion.eaten, fill=Food)) + geom_boxplot() + facet_grid(Period~Species.x) + ggtitle("16")
+holddf <- subset(all, Trial.x == "18")
+ggplot(holddf, aes(x = as.factor(Date.x), y = proportion.eaten, fill=Food)) + geom_boxplot() + facet_grid(Period~Species.x) + ggtitle("18")
+holddf <- subset(all, Trial.x == "20")
+ggplot(holddf, aes(x = as.factor(Date.x), y = proportion.eaten, fill=Food)) + geom_boxplot() + facet_grid(Period~Species.x) + ggtitle("20")
+holddf <- subset(all, Trial.x == "22")
+ggplot(holddf, aes(x = as.factor(Date.x), y = proportion.eaten, fill=Food)) + geom_boxplot() + facet_grid(Period~Species.x) + ggtitle("22")
+holddf <- subset(all, Trial.x == "24")
+ggplot(holddf, aes(x = as.factor(Date.x), y = proportion.eaten, fill=Food)) + geom_boxplot() + facet_grid(Period~Species.x) + ggtitle("24")
+holddf <- subset(all, Trial.x == "26")
+ggplot(holddf, aes(x = as.factor(Date.x), y = proportion.eaten, fill=Food)) + geom_boxplot() + facet_grid(Period~Species.x) + ggtitle("26")
+
+ggplot(all, aes(x = as.factor(Date.x), y = proportion.eaten, fill=Food)) + geom_boxplot() + facet_grid(Period~Species.x)
+
+#Graping by species so it's easier to see
+holddf <- subset(all, Species.y == "Irroratus")
+ggplot(holddf, aes(x = as.factor(Date.x), y = proportion.eaten, fill=as.factor(Period))) + geom_boxplot() + facet_wrap(~Trial.y,scales = "free_x") + ggtitle("Cancer")
+holddf <- subset(all, Species.y == "Carcinus")
+ggplot(holddf, aes(x = as.factor(Date.x), y = proportion.eaten, fill=as.factor(Period))) + geom_boxplot() + facet_wrap(~Trial.y,scales = "free_x") + ggtitle("Green Crab")
+holddf <- subset(all, Species.y == "Hemigrapsus")
+ggplot(holddf, aes(x = as.factor(Date.x), y = proportion.eaten, fill=as.factor(Period))) + geom_boxplot() + facet_wrap(~Trial.y,scales = "free_x") + ggtitle("Hemi")
+```
+
+The data does not look clean. So I will clean it first by removing ones that ate everything. I was also push those who did not eat to 0
+
+```{R}
+for(i in 1:nrow(all)){
+  if(grepl("DE", all$Notes.x[i], fixed = TRUE)){
+    all$proportion.eaten[i] = 0
+  }
+  if(grepl("AE", all$Notes.x[i], fixed = TRUE)){
+    all <- all[-i, ] 
+  }
+  if(grepl("DI", all$Notes.x[i], fixed = TRUE)){
+    all <- all[-i, ] 
+  }
+}
+
+#Re running graphs
+holddf <- subset(all, Species.y == "Irroratus")
+ggplot(holddf, aes(x = as.factor(Date.x), y = proportion.eaten, fill=as.factor(Period))) + geom_boxplot() + facet_wrap(~Trial.y,scales = "free_x") + ggtitle("Cancer")
+holddf <- subset(all, Species.y == "Carcinus")
+ggplot(holddf, aes(x = as.factor(Date.x), y = proportion.eaten, fill=as.factor(Period))) + geom_boxplot() + facet_wrap(~Trial.y,scales = "free_x") + ggtitle("Green Crab")
+holddf <- subset(all, Species.y == "Hemigrapsus")
+ggplot(holddf, aes(x = as.factor(Date.x), y = proportion.eaten, fill=as.factor(Period))) + geom_boxplot() + facet_wrap(~Trial.y,scales = "free_x") + ggtitle("Hemi")
+```
+
+Looking better! But maybe we can still adjust outliers. Let's try removing those that molted. 
+
+```{R}
+array <- c()
+
+for(i in 1:nrow(all)){
+  if(grepl("ME", all$Notes.x[i], fixed = TRUE)){
+    ID_value <- all$ID[i]
+    for(j in 1:nrow(all)){
+      if(all$ID[j] == ID_value){
+        array <- c(array, j)
+      }
+    }
+  }
+}
+
+all <- all[-array,]
+array <- c()
+
+#Re running graphs
+holddf <- subset(all, Species.y == "Irroratus")
+ggplot(holddf, aes(x = as.factor(Date.x), y = proportion.eaten, fill=as.factor(Period))) + geom_boxplot() + facet_wrap(~Trial.y,scales = "free_x") + ggtitle("Cancer")
+holddf <- subset(all, Species.y == "Carcinus")
+ggplot(holddf, aes(x = as.factor(Date.x), y = proportion.eaten, fill=as.factor(Period))) + geom_boxplot() + facet_wrap(~Trial.y,scales = "free_x") + ggtitle("Green Crab")
+holddf <- subset(all, Species.y == "Hemigrapsus")
+ggplot(holddf, aes(x = as.factor(Date.x), y = proportion.eaten, fill=as.factor(Period))) + geom_boxplot() + facet_wrap(~Trial.y,scales = "free_x") + ggtitle("Hemi")
+```
+
+Additional things to look at - size to porportion eaten
+
+```{R}
+ggplot(all, aes(x = WW, y = CL, color = Species.x)) + geom_point()
+
+holddf <- subset(all, Species.y == "Irroratus")
+ggplot(holddf, aes(x = WW, y = proportion.eaten, fill=as.factor(Period))) + geom_point() + facet_wrap(~Trial.y,scales = "free_x") + ggtitle("Cancer")
+holddf <- subset(all, Species.y == "Carcinus")
+ggplot(holddf, aes(x = WW, y = proportion.eaten, fill=as.factor(Period))) + geom_point() + facet_wrap(~Trial.y,scales = "free_x") + ggtitle("Carcinus")
+holddf <- subset(all, Species.y == "Hemigrapsus")
+ggplot(holddf, aes(x = WW, y = proportion.eaten, fill=as.factor(Period))) + geom_point() + facet_wrap(~Trial.y,scales = "free_x") + ggtitle("Hemigrapsus")
+```
