@@ -144,9 +144,9 @@ Additional things to look at - size to porportion eaten
 ggplot(all, aes(x = WW, y = CL, color = Species.x)) + geom_point()
 
 holddf <- subset(all, Species.y == "Irroratus")
-ggplot(holddf, aes(x = WW, y = proportion.eaten, fill=as.factor(Period))) + geom_point() + facet_wrap(~Trial.y,scales = "free_x") + ggtitle("Cancer")
+ggplot(holddf, aes(x = WW, y = proportion.eaten, color=as.factor(Period))) + geom_point() + facet_wrap(~Trial.y,scales = "free_x") + ggtitle("Cancer") + geom_smooth(method = "lm")
 holddf <- subset(all, Species.y == "Carcinus")
-ggplot(holddf, aes(x = WW, y = proportion.eaten, fill=as.factor(Period))) + geom_point() + facet_wrap(~Trial.y,scales = "free_x") + ggtitle("Carcinus")
+ggplot(holddf, aes(x = WW, y = proportion.eaten, color=as.factor(Period))) + geom_point() + facet_wrap(~Trial.y,scales = "free_x") + ggtitle("Carcinus") + geom_smooth(method = "lm")
 holddf <- subset(all, Species.y == "Hemigrapsus")
-ggplot(holddf, aes(x = WW, y = proportion.eaten, fill=as.factor(Period))) + geom_point() + facet_wrap(~Trial.y,scales = "free_x") + ggtitle("Hemigrapsus")
+ggplot(holddf, aes(x = WW, y = proportion.eaten, color=as.factor(Period))) + geom_point() + facet_wrap(~Trial.y,scales = "free_x") + ggtitle("Hemigrapsus") + geom_smooth(method = "lm")
 ```
