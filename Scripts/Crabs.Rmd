@@ -8,7 +8,7 @@ Methods: blah blah blah
 library(ggplot2)
 setwd("/Users/chanceyan/Documents/R/ThesisCrab/Data")
 crabdata <- read.csv("Feeding.csv", h=T)
-death <- read.csv("Death.csv", h=T)
+death <- read.csv("DeathCount.csv", h=T)
 master <- read.csv("Master.csv", h=T)
 ```
 
@@ -132,14 +132,12 @@ There is a nice relationship between carapace length and wet weight. However, th
 #### Death Count Among Species and Trial
 
 ```{R, echo = FALSE, warning = FALSE}
-#Removing Hemi row - killed due to human error
-death <- subset(death, death$Species != "HS")
-death$Species <- factor(death$Species, levels=c("CM","CI"))
-ggplot(death, aes(x = as.factor(Trial), fill = as.factor(Trial))) + geom_histogram(stat = "count") + facet_wrap(~Species) + ggtitle("Experiment Deaths across different trials and species (No deaths for Hemis)")+
-  scale_fill_manual(values = c("20" = "darksalmon",
-                                "22"="orange1",
-                                "24"="orange3",
-                                "26" = "orange4"))
+#Making a graph for counts
+death$Species <- factor(death$Species, levels = c("HS", "CM", "CI"))
+ggplot(death, aes(x = as.factor(Trial), y = Count, fill = Life)) + facet_wrap(~Species) + geom_bar(stat='identity')+
+  scale_fill_manual(values = c("ALIVE" = "darkolivegreen4",
+                                "DEAD"="darkred"))
+
 ```
 
 *Cancer irroratus* have the highest death count among all 3 species with *Hemigrapsus* having none and *Carcinus meanus* only having two death counts. Across trials with *Cancer irroratus*, the higher the trial temperature the more deaths there are as well.
@@ -209,25 +207,17 @@ ggplot(all, aes(x = proportion.eaten, fill = Species.x)) + geom_histogram(binwid
 
 It seems like Cancer crabs have a left leaning normality curve. Green crabs have a normal spread. Hemigrapsus have a left leaning curve as well. Unsure if this is even a valid graph because it's kind of what we expected if Cancer crabs are all tanking 0's due to it being too hot.
 
-
 Before we can analyze the proportion eaten, we have to understand if the acclimation worked... To do this, we'll bin each week by each other and calculate averages to compare.
+
 ```{R}
+
+holddf <- subset(all, all$Trial.x == 16 & all$Species.x == "CI" & all$Period == 1)
+unique(holddf$Date.x)
+unique(holddf$Period)
 
 ```
 
 ------------------------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-
 
 Unrefined
 
