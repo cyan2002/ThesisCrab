@@ -207,54 +207,70 @@ ggplot(all, aes(x = proportion.eaten, fill = Species.x)) + geom_histogram(binwid
 
 It seems like Cancer crabs have a left leaning normality curve. Green crabs have a normal spread. Hemigrapsus have a left leaning curve as well. Unsure if this is even a valid graph because it's kind of what we expected if Cancer crabs are all tanking 0's due to it being too hot.
 
+Actually, we need to look at general consumption over time. 
+
 Before we can analyze the proportion eaten, we have to understand if the acclimation worked... To do this, we'll bin each week by each other and calculate averages to compare.
 
 ```{R}
 
-holddf <- subset(all, all$Trial.x == 16 & all$Species.x == "CI" & all$Period == 1)
-unique(holddf$Date.x)
-unique(holddf$Period)
+#Removing these dates because feeding was not following a strict schedule (fed two days back to back)
+all <- subset(all, (all$WeekNum != "1" | all$Trial.x != "16"))
 
+holddf <- subset(all, all$Species.x == "CI")
+ggplot(holddf, aes(x = WeekNum, y = proportion.eaten, color = as.factor(Period))) + geom_point() + facet_wrap(~Trial.x) +
+  ggtitle("Period 1+2, Cancer Irroratus") + geom_smooth(method = "loess")
+
+#new column that is the temperature difference from it's target temperature
+all$tempDiff <- abs(all$Trial.x - all$Temperature)
+
+ggplot(all, aes(x = Date.x, y = tempDiff, color = as.factor(Period))) + geom_point() + facet_wrap(~Trial.x, scales = "free_x")
 ```
 
-------------------------------------------------------------------------
 
-Unrefined
+```{R}
+#Only the 16C trial has 8 data points, the rest have 9 making it easier to calculate by week. 
 
-Get last 3 values to average out and compare among species and trial.
-
-```{R, include = FALSE}
+#lists to hold values
 avg_list <- NA
 species_list <- NA
 trial_list <- NA
 period_list <- NA
-sample_list <- NA
+obs_count <- NA
+week_list <- NA
 
+#used to loop through each specific trial by species
 preload_spp <- c("CI", "CM", "HS")
-preload_tr <- c("26", "24", "22", "20", "18", "16")
+preload_tr <- c("26", "24", "22", "20", "18")
 
 for(a in 1:length(preload_spp)){
   for(b in 1:length(preload_tr) ){
     for(i in 1:2){
-      holddf <- subset(all, all$Species.x == preload_spp[a])
-      holddf <- subset(holddf, holddf$Trial.x == preload_tr[b])
-      holddf <- subset(holddf, holddf$Period == i)
+      #creating a dataframe that subsets the exact trial by species we want to collect average from
+      holddf <- subset(all, all$Species.x == preload_spp[a] & all$Trial.x == preload_tr[b] & all$Period == i)
+      
+      #Collecting all the dates from the trial
       holddf$Date.x <- as.Date(holddf$Date.x)
-      last.dates <- sort(unique(holddf$Date.x))
-      last.dates <- tail(last.dates, 3)
+      
+      #Sorting the dates in order
+      dates <- sort(unique(holddf$Date.x))
+      
+      #Taking the last 3 dates which would be the trial days or 3rd week
+      last.dates <- tail(dates, 3)
+      
+      #Changing the dataframe so that it only contains data from the trial week 
       holddf <- subset(holddf, holddf$Date.x == last.dates[1] | holddf$Date.x == last.dates[2] | holddf$Date.x == last.dates[3])
+      
+      #adding these values to the empty lists for week 3
       avg_list <- append(avg_list, mean(holddf$proportion.eaten))
       species_list <- append(species_list, holddf$Species.x[1])
       trial_list <- append(trial_list, holddf$Trial.x[1])
       period_list <- append(period_list, holddf$Period[1])
-      sample_list <- append(sample_list, nrow(na.omit(holddf)))
+      obs_count <- append(obs_count, nrow(na.omit(holddf)))
+      week_list <- append(week_list, 3)
     }
   }
 }
 
-average_df <- data.frame(avg_list, species_list, trial_list, period_list, sample_list)
+average_df <- data.frame(avg_list, species_list, trial_list, period_list, obs_count)
 average_df <- na.omit(average_df)
-
-ggplot(average_df, aes(x = species_list, y = avg_list, color = as.factor(trial_list))) + geom_boxplot()
-ggplot(average_df, aes(x = species_list, y = avg_list, color = as.factor(trial_list))) + geom_boxplot() + facet_wrap(~period_list)
 ```
