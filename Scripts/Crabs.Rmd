@@ -1,6 +1,24 @@
 # Chance's Second Thesis Chapter: Understand Thermal Niche from Consumption TPCs
 
-Methods: blah blah blah
+**Question:** Is there thermal niche overlap or complementarity in consumption among the predatory crabs of the Gulf of Maine?
+
+**Hypothesis:** There is thermal niche complementarity between the crab predators. 
+
+**Null Hypothesis:** There is thermal niche overlap between the crab predators.
+
+**Predictions:**
+
+-   Prediction 1: The asian shore crab will have the highest consumption TPC/thermal niche compared to green crabs and cancer crabs. Followed by green crabs having the second highest TPC/thermal niche. Meanwhile, cancer crabs (Cancer borealis preferred, but Cancer irroratus backup - more on this later)
+
+-   Prediction 2:There is no difference in consumption TPC between green crabs, asian shore crabs, and cancer crabs. 
+
+-   Prediction 3: There is some overlap between 2 of the species, but not the last one. 
+
+**Experimental Design:**
+
+2 Systems (2 possible temperatures at a time), 5 temperature regimes (minimum to map out a TPC), 3 species, 6 repetitions. We can only fit 18 individuals in each system.
+
+6 reps \* 3 species \* 5 temperature regimes \* 2 temporal blocks = 180 crabs\
 
 ## Data Processing
 
@@ -92,9 +110,27 @@ array <- c()
 #removing mussel and mackerel feed
 all <- subset(all, all$Food != "Mussels")
 all <- subset(all, all$Food != "Mackerel")
+
+#Removing these dates because feeding was not following a strict schedule (fed two days back to back)
+all <- subset(all, (all$WeekNum != "1" | all$Trial.x != "16"))
+
+#Changing trials 16 and 18 to be one.
+all$Trial.x <- ifelse(all$Trial.x == "16", "18", all$Trial.x)
 ```
 
 ## Data Exploration
+
+### Basic information on the dataset
+
+```{r echo = FALSE, warning = FALSE}
+c <- tapply(all$proportion.eaten, list(all$Species.x, all$Trial.x), FUN = length)
+
+a <- tapply(all$CL, list(all$Species.x, all$Trial.x), FUN = mean)
+
+library(knitr)
+kable(c, caption = "Sample size for each species, trial")
+kable(a, caption = "Average Carapace Length for each species, trial")
+```
 
 #### Species Comparison between carapace length and proportion eaten.
 
@@ -119,7 +155,7 @@ Clear distinction between species:
 #### Carapace Length and Wet Weight Comparison between species
 
 ```{R, echo = FALSE, warning = FALSE}
-ggplot(all, aes(x = WW, y = CL, color = Species.x)) + geom_point() + ggtitle("Relationship between carapace length and wet weight")+
+ggplot(all, aes(x = WW, y = CL, color = Species.x)) + geom_point()+
   scale_color_manual(values = c("CI" = "darkorange",
                                 "CM"="darkgreen",
                                 "HS"="darkred"))
@@ -207,70 +243,53 @@ ggplot(all, aes(x = proportion.eaten, fill = Species.x)) + geom_histogram(binwid
 
 It seems like Cancer crabs have a left leaning normality curve. Green crabs have a normal spread. Hemigrapsus have a left leaning curve as well. Unsure if this is even a valid graph because it's kind of what we expected if Cancer crabs are all tanking 0's due to it being too hot.
 
-Actually, we need to look at general consumption over time. 
+Actually, we need to look at general consumption over time.
 
 Before we can analyze the proportion eaten, we have to understand if the acclimation worked... To do this, we'll bin each week by each other and calculate averages to compare.
 
-```{R}
-
-#Removing these dates because feeding was not following a strict schedule (fed two days back to back)
-all <- subset(all, (all$WeekNum != "1" | all$Trial.x != "16"))
-
+```{R echo = FALSE, warning = FALSE}
 holddf <- subset(all, all$Species.x == "CI")
-ggplot(holddf, aes(x = WeekNum, y = proportion.eaten, color = as.factor(Period))) + geom_point() + facet_wrap(~Trial.x) +
-  ggtitle("Period 1+2, Cancer Irroratus") + geom_smooth(method = "loess")
+ggplot(holddf, aes(x = as.numeric(WeekNum), y = proportion.eaten, color = as.factor(Period))) + geom_point() + facet_wrap(~Trial.x) +
+  ggtitle("Proportion consumed over time for Period 1+2, Cancer Irroratus") + geom_smooth(method = "loess", se = FALSE)+
+  scale_color_manual(values = c("1" = "darkorange",
+                                "2"="darkgreen"))
+
+holddf <- subset(all, all$Species.x == "CM")
+ggplot(holddf, aes(x = as.numeric(WeekNum), y = proportion.eaten, color = as.factor(Period))) + geom_point() + facet_wrap(~Trial.x) +
+  ggtitle("Proportion consumed over time for Period 1+2, Carcinus maenus") + geom_smooth(method = "loess", se = FALSE)+
+  scale_color_manual(values = c("1" = "darkorange",
+                                "2"="darkgreen"))
+
+holddf <- subset(all, all$Species.x == "HS")
+ggplot(holddf, aes(x = as.numeric(WeekNum), y = proportion.eaten, color = as.factor(Period))) + geom_point() + facet_wrap(~Trial.x) +
+  ggtitle("Proportion consumed over time for Period 1+2, Hemigrapsus") + geom_smooth(method = "loess", se = FALSE)+
+  scale_color_manual(values = c("1" = "darkorange",
+                                "2"="darkgreen"))
 
 #new column that is the temperature difference from it's target temperature
-all$tempDiff <- abs(all$Trial.x - all$Temperature)
+all$tempDiff <- abs(as.numeric(all$Trial.x) - all$Temperature)
 
 ggplot(all, aes(x = Date.x, y = tempDiff, color = as.factor(Period))) + geom_point() + facet_wrap(~Trial.x, scales = "free_x")
 ```
 
+### Looking at the proportion eaten for each trial for each individual species (CI, CM, and HS)
 
-```{R}
-#Only the 16C trial has 8 data points, the rest have 9 making it easier to calculate by week. 
+```{R echo = FALSE, warning = FALSE}
+holddf <- subset(all, all$Species.x == "CI")
+ggplot(holddf,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = as.factor(Period))) + geom_point() + geom_smooth(method = "loess")+ 
+  ggtitle("Proportion consumed over trial temperature for Period 1+2, Cancer irroratus") +
+  scale_color_manual(values = c("1" = "orange1",
+                                "2" = "orange4"))
 
-#lists to hold values
-avg_list <- NA
-species_list <- NA
-trial_list <- NA
-period_list <- NA
-obs_count <- NA
-week_list <- NA
+holddf <- subset(all, all$Species.x == "CM")
+ggplot(holddf,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = as.factor(Period))) + geom_point() + geom_smooth(method = "loess") +
+  ggtitle("Proportion consumed over trial temperature for Period 1+2, Carcinus meanus") +
+  scale_color_manual(values = c("1" = "lightgreen",
+                                "2" = "darkgreen"))
 
-#used to loop through each specific trial by species
-preload_spp <- c("CI", "CM", "HS")
-preload_tr <- c("26", "24", "22", "20", "18")
-
-for(a in 1:length(preload_spp)){
-  for(b in 1:length(preload_tr) ){
-    for(i in 1:2){
-      #creating a dataframe that subsets the exact trial by species we want to collect average from
-      holddf <- subset(all, all$Species.x == preload_spp[a] & all$Trial.x == preload_tr[b] & all$Period == i)
-      
-      #Collecting all the dates from the trial
-      holddf$Date.x <- as.Date(holddf$Date.x)
-      
-      #Sorting the dates in order
-      dates <- sort(unique(holddf$Date.x))
-      
-      #Taking the last 3 dates which would be the trial days or 3rd week
-      last.dates <- tail(dates, 3)
-      
-      #Changing the dataframe so that it only contains data from the trial week 
-      holddf <- subset(holddf, holddf$Date.x == last.dates[1] | holddf$Date.x == last.dates[2] | holddf$Date.x == last.dates[3])
-      
-      #adding these values to the empty lists for week 3
-      avg_list <- append(avg_list, mean(holddf$proportion.eaten))
-      species_list <- append(species_list, holddf$Species.x[1])
-      trial_list <- append(trial_list, holddf$Trial.x[1])
-      period_list <- append(period_list, holddf$Period[1])
-      obs_count <- append(obs_count, nrow(na.omit(holddf)))
-      week_list <- append(week_list, 3)
-    }
-  }
-}
-
-average_df <- data.frame(avg_list, species_list, trial_list, period_list, obs_count)
-average_df <- na.omit(average_df)
+holddf <- subset(all, all$Species.x == "HS")
+ggplot(holddf,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = as.factor(Period))) + geom_point() + geom_smooth(method = "loess") +
+  ggtitle("Proportion consumed over trial temperature for Period 1+2, Hemigrapsus") +
+  scale_color_manual(values = c("1" = "pink",
+                                "2" = "darkred"))
 ```
