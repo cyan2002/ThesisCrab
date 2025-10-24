@@ -1,5 +1,8 @@
 # Chance's Second Thesis Chapter: Understand Thermal Niche from Consumption TPCs
 
+Made by Chance Yan
+Last Edit:
+
 **Question:** Is there thermal niche overlap or complementarity in consumption among the predatory crabs of the Gulf of Maine?
 
 **Hypothesis:** There is thermal niche complementarity between the crab predators. 
