@@ -27,6 +27,8 @@ Last Edit:
 
 ```{R, include = FALSE, warning = FALSE}
 library(ggplot2)
+library(lubridate)
+library(hms)
 setwd("/Users/chanceyan/Documents/R/ThesisCrab/Data")
 crabdata <- read.csv("Feeding.csv", h=T)
 death <- read.csv("DeathCount.csv", h=T)
@@ -72,11 +74,13 @@ all$proportion.eaten <- (all$amount.eaten / all$WW)
 #Changing date column into a date data type, so that R can read it as a Date.
 all$Date.x = as.Date(all$Date.x, format = "%m/%d/%Y")
 
+
 #Making all those who did not eat to 0
+#Maybe don't need? Blank out for now "DE", keep other
 for(i in 1:nrow(all)){
-  if(grepl("DE", all$Notes.x[i], fixed = TRUE)){
-    all$proportion.eaten[i] = 0
-  }
+  #if(grepl("DE", all$Notes.x[i], fixed = TRUE)){
+  #  all$proportion.eaten[i] = 0
+  #}
   if(grepl("AE", all$Notes.x[i], fixed = TRUE)){
     all <- all[-i, ] 
   }
@@ -119,6 +123,43 @@ all <- subset(all, (all$WeekNum != "1" | all$Trial.x != "16"))
 
 #Changing trials 16 and 18 to be one.
 all$Trial.x <- ifelse(all$Trial.x == "16", "18", all$Trial.x)
+
+#Here, I am marking all those who did not eat
+EatDF <- subset(all, grepl("DE", all$Notes.x, fixed = TRUE))
+
+#Making a new column indicating whether the animal ate or not
+eaten_row <- list()
+for(i in 1:nrow(all)){
+  if(grepl("DE", all$Notes.x[i], fixed = TRUE)){
+    eaten_row <- c(eaten_row, "NO")
+  }
+  else{
+    eaten_row <- c(eaten_row, "YES")
+  }
+}
+all$eaten <- eaten_row
+
+inBucket <- list()
+#total time of food in bucket
+all$TimeInStrip <- as.POSIXct(paste(all$Date.x, all$TimeIn), format = "%Y-%m-%d %I:%M:%S %p")
+all$TimeOutStrip <- as.POSIXct(paste(all$Date.x, all$TimeOut), format = "%Y-%m-%d %I:%M:%S %p")
+#all$TimeOut <- hm(all$TimeOut)
+for(i in 1:nrow(all)){
+  hour <- as.numeric(format(all$TimeInStrip[i], "%H"))
+  if(hour < 8){
+    #print(all$TimeInStrip[i])
+    all$TimeInStrip[i] <- all$TimeInStrip[i] + 12 * 60 * 60
+  }
+  hour <- as.numeric(format(all$TimeOutStrip[i], "%H"))
+  if(hour < 8){
+    #print(all$TimeInStrip[i])
+    all$TimeOutStrip[i] <- all$TimeOutStrip[i] + 12 * 60 * 60
+  }
+  
+  inBucket <- append(inBucket, as.numeric(difftime(all$TimeOutStrip[i], all$TimeInStrip[i], units = "mins")))
+}
+
+all$timeInBucket <- inBucket
 ```
 
 ## Data Exploration
@@ -126,7 +167,7 @@ all$Trial.x <- ifelse(all$Trial.x == "16", "18", all$Trial.x)
 ### Basic information on the dataset
 
 ```{r echo = FALSE, warning = FALSE}
-c <- tapply(all$proportion.eaten, list(all$Species.x, all$Trial.x), FUN = length)
+c <- tapply(master, list(all$Species.x, all$Trial.x), FUN = length)
 
 a <- tapply(all$CL, list(all$Species.x, all$Trial.x), FUN = mean)
 
@@ -163,7 +204,8 @@ ggplot(all, aes(x = WW, y = CL, color = Species.x)) + geom_point()+
                                 "CM"="darkgreen",
                                 "HS"="darkred"))
 #There is an outlier who is CM 176 - I am willing to throw this individual out since he is the only one of it's kind
-all <- subset(all, all$ID != "CM176")
+#all <- subset(all, all$ID != "CM176")
+outliers <- list(c(ID = "CM176"))
 ```
 
 There is a nice relationship between carapace length and wet weight. However, there was an outlier. I have thrown it out since it's the ONLY one so far off, but I have checked and data was entered correctly.
@@ -180,6 +222,19 @@ ggplot(death, aes(x = as.factor(Trial), y = Count, fill = Life)) + facet_wrap(~S
 ```
 
 *Cancer irroratus* have the highest death count among all 3 species with *Hemigrapsus* having none and *Carcinus meanus* only having two death counts. Across trials with *Cancer irroratus*, the higher the trial temperature the more deaths there are as well.
+
+#### Amount of who did not eat by species and trial
+
+```{R, echo = FALSE, warning = FALSE}
+ggplot(EatDF, aes(x = Trial.x, fill = Species.x)) + geom_histogram(stat="count") + facet_wrap(~Period)
+```
+
+Looking at how much food gains or loses (not by being eaten, but by being in saltwater)
+
+```{R, echo = FALSE, warning = FALSE}
+holddf <- subset(all, grepl("DE", all$Notes.x, fixed = TRUE))
+
+```
 
 #### Food Type Effects on Proportion Eaten
 
@@ -215,14 +270,30 @@ After running a t-test on these, it seems like green crabs and Hemigrapsus have 
 ```{r, figures-side, fig.show="hold", out.width="50%", echo = FALSE, warning = FALSE}
 #Pretty normal - looking good
 
-holddf <- subset(all, all$Species.x == "CI")
-ggplot(holddf, aes(x = WW)) + geom_histogram(binwidth = 25, fill = "darkorange", color = "black") + facet_wrap(~Species.x, scales = "free") + ggtitle("Wet weight for Cancer")
+holddf <- subset(master, master$Species == "Irroratus")
+ggplot(holddf, aes(x = WW)) + geom_histogram(binwidth = 25, fill = "darkorange", color = "black") + facet_wrap(~Species, scales = "free") + ggtitle("Wet weight for Cancer")
 
-holddf <- subset(all, all$Species.x == "CM")
-ggplot(holddf, aes(x = WW)) + geom_histogram(binwidth = 15, fill = "darkgreen", color = "black") + facet_wrap(~Species.x, scales = "free") + ggtitle("Wet weight for Carcinus")
+holddf <- subset(master, master$Species == "Carcinus")
+ggplot(holddf, aes(x = WW)) + geom_histogram(binwidth = 15, fill = "darkgreen", color = "black") + facet_wrap(~Species, scales = "free") + ggtitle("Wet weight for Carcinus")
 
-holddf <- subset(all, all$Species.x == "HS")
-ggplot(holddf, aes(x = WW)) + geom_histogram(binwidth = 1, fill = "darkred", color = "black") + facet_wrap(~Species.x, scales = "free") + ggtitle("Wet weight for Hemigrapsus")
+holddf <- subset(master, master$Species == "Hemigrapsus")
+ggplot(holddf, aes(x = WW)) + geom_histogram(binwidth = 1, fill = "darkred", color = "black") + facet_wrap(~Species, scales = "free") + ggtitle("Wet weight for Hemigrapsus")
+```
+
+Looking more specifically at each outlier for weight to see if they acted as expected or not. Checking in on the outlier for rock and hemi
+
+```{R}
+#CI117
+holddf <- subset(all, all$ID == "CI117")
+ggplot(holddf, aes(x = Date.x, y = proportion.eaten)) + geom_point() + geom_smooth(method = "loess", se = FALSE) + ggtitle("Proportion eaten by CI117 in 18 C in period 2")
+
+#HS92
+holddf <- subset(all, all$ID == "HS92")
+ggplot(holddf, aes(x = Date.x, y = proportion.eaten)) + geom_point() + geom_smooth(method = "loess", se = FALSE) + ggtitle("Proportion eaten by HS92 in 26 C in period 2")
+
+#HS92
+holddf <- subset(all, all$ID == "CM176")
+ggplot(holddf, aes(x = Date.x, y = proportion.eaten)) + geom_point() + geom_smooth(method = "loess", se = FALSE) + ggtitle("Proportion eaten by CM176 in 20 C in period 2")
 ```
 
 For each species on wet weight normality:
