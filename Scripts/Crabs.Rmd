@@ -1,11 +1,10 @@
 # Chance's Second Thesis Chapter: Understand Thermal Niche from Consumption TPCs
 
-Made by Chance Yan
-Last Edit:
+Made by Chance Yan Last Edit:
 
-**Question:** Is there thermal niche overlap or complementarity in consumption among the predatory crabs of the Gulf of Maine?
+**Question:** Is there thermal niche overlap or complementary in consumption among the predatory crabs of the Gulf of Maine?
 
-**Hypothesis:** There is thermal niche complementarity between the crab predators. 
+**Hypothesis:** There is thermal niche complementary between the crab predators. 
 
 **Null Hypothesis:** There is thermal niche overlap between the crab predators.
 
@@ -33,6 +32,7 @@ setwd("/Users/chanceyan/Documents/R/ThesisCrab/Data")
 crabdata <- read.csv("Feeding.csv", h=T)
 death <- read.csv("DeathCount.csv", h=T)
 master <- read.csv("Master.csv", h=T)
+deathMeta <- read.csv("Death.csv", h=T)
 ```
 
 #### Cleaning up data for use
@@ -53,6 +53,7 @@ We need to clean up the data first to use it. What I did...
 crabdata$FoodIn <- as.numeric(as.character(crabdata$FoodIn))
 crabdata$FoodOut <- as.numeric(as.character(crabdata$FoodOut))
 
+#removing rows that contain no data or recorded incorrectly
 for(i in 1:nrow(crabdata)){
   if(!is.numeric(crabdata[i,4])){
     crabdata <- crabdata[-i,]
@@ -62,18 +63,50 @@ for(i in 1:nrow(crabdata)){
   }
 }
 
-#Creating number IDs for each crab based of their IDs so it's easier to loop through with future code. Also I'm adding a total eaten by proportion column, so we have a fair metric to compare by.
 
+
+
+#Creating number IDs for each crab based of their IDs so it's easier to loop through with future code. Also I'm adding a total eaten by proportion column, so we have a standard metric to compare by.
 for(i in 1:36){
   master$num[[i]] <- substr(master$ID[[i]], 3,5)
 }
-
+#WE NEED TO ACCOUNT FOR THOSE WHO GOT REPLCED AND CHANGE THEIR WEIGHT
 crabdata$amount.eaten <- crabdata$FoodIn-crabdata$FoodOut
 all <- merge(crabdata, master, by="ID")
-all$proportion.eaten <- (all$amount.eaten / all$WW)
+
 #Changing date column into a date data type, so that R can read it as a Date.
 all$Date.x = as.Date(all$Date.x, format = "%m/%d/%Y")
+deathMeta$Date = as.Date(deathMeta$Date, format = "%m/%d/%Y")
 
+#run through the feed data
+for(i in 1:nrow(all)){
+  #if the individual is marked on the death metasheet then that means they may have been replaced (or not)
+  if(any(deathMeta$ID == all$ID[i])){
+    #If the ID is on the death metasheet, check which row it's on and see if it's been replaced or not
+    row_dat <- deathMeta[deathMeta$ID == all$ID[i],]
+    #the value has been replaced!
+    if(row_dat$Replaced == "Y"){
+      #Only replace if date is after the death date
+      if(all$Date.x[i] >= row_dat$Date){
+        all$proportion.eaten[i] <- all$amount.eaten[i] / row_dat$ReplacedWeight
+        all$WW[i] <- row_dat$ReplacedWeight
+      }
+      else{
+        all$proportion.eaten[i] <- (all$amount.eaten[i] / all$WW[i])
+      }
+    }
+    #If not replaced continue as usual
+    else{
+      all$proportion.eaten[i] <- (all$amount.eaten[i] / all$WW[i])
+    }
+  }
+  #If not on death sheet continue as usual
+  else{
+    all$proportion.eaten[i] <- (all$amount.eaten[i] / all$WW[i])
+  }
+}
+
+holddf <- subset(all, all$ID == "CI99")
 
 #Making all those who did not eat to 0
 #Maybe don't need? Blank out for now "DE", keep other
@@ -91,11 +124,22 @@ for(i in 1:nrow(all)){
     all <- all[-i,]
   }
   else{
-    if(all$amount.eaten[i] < 0){
-      all$proportion.eaten[i] = 0
-    }
+    #code if amount eaten was less than 0 make it 0
+    #if(all$amount.eaten[i] < 0){
+    #  all$proportion.eaten[i] = 0
+    #}
   }
 }
+
+#removing mussel and mackerel feed
+all <- subset(all, all$Food != "Mussels")
+all <- subset(all, all$Food != "Mackerel")
+
+original <- all
+
+#saving those who molted in an original dataset
+original_molted <- all
+original_molted$molted <- ifelse(grepl("ME", original_molted$Notes.x, fixed = TRUE), "YES", "NO")
 
 #Removing those that molted
 array <- c()
@@ -113,10 +157,6 @@ for(i in 1:nrow(all)){
 
 all <- all[-array,]
 array <- c()
-
-#removing mussel and mackerel feed
-all <- subset(all, all$Food != "Mussels")
-all <- subset(all, all$Food != "Mackerel")
 
 #Removing these dates because feeding was not following a strict schedule (fed two days back to back)
 all <- subset(all, (all$WeekNum != "1" | all$Trial.x != "16"))
@@ -138,6 +178,9 @@ for(i in 1:nrow(all)){
   }
 }
 all$eaten <- eaten_row
+
+#Making a column if the animal was still eating or not
+all$still_eating <- ifelse(grepl("SE", all$Notes.x, fixed = TRUE), "YES", "NO")
 
 inBucket <- list()
 #total time of food in bucket
@@ -167,50 +210,21 @@ all$timeInBucket <- inBucket
 ### Basic information on the dataset
 
 ```{r echo = FALSE, warning = FALSE}
-c <- tapply(master, list(all$Species.x, all$Trial.x), FUN = length)
+c <- tapply(master$ID, list(master$Species, master$Trial), FUN = length)
+
+b <- tapply(all$proportion.eaten, list(all$Species.x, all$Trial.x), FUN = length)
 
 a <- tapply(all$CL, list(all$Species.x, all$Trial.x), FUN = mean)
 
 library(knitr)
 kable(c, caption = "Sample size for each species, trial")
+kable(b, caption = "Sample size for each feeding trial")
 kable(a, caption = "Average Carapace Length for each species, trial")
 ```
 
-#### Species Comparison between carapace length and proportion eaten.
+Hemigrapsus at 26 C is much smaller because I removed a lot of those who molted
 
-```{r, fig.show="hold", out.width="50%", echo = FALSE, warning = FALSE}
-ggplot(all, aes(y = CL, color = Species.x)) + geom_boxplot() +
-  scale_color_manual(values = c("CI" = "darkorange",
-                                "CM"="darkgreen",
-                                "HS"="darkred"))
-
-ggplot(all, aes(y = proportion.eaten, color = Species.x)) + geom_boxplot() +
-  scale_color_manual(values = c("CI" = "darkorange",
-                                "CM"="darkgreen",
-                                "HS"="darkred"))
-```
-
-Clear distinction between species:
-
--   *Cancer irroratus* are larger than the other two species followed by *Carcinus meanus* then the smallest as *Hemigrapsus*.
-
--   The pattern is opposite when it comes to the amount they've eaten proportionally. So *Hemigrapsus* eats the most and *Cancer irroratus* eats the least.
-
-#### Carapace Length and Wet Weight Comparison between species
-
-```{R, echo = FALSE, warning = FALSE}
-ggplot(all, aes(x = WW, y = CL, color = Species.x)) + geom_point()+
-  scale_color_manual(values = c("CI" = "darkorange",
-                                "CM"="darkgreen",
-                                "HS"="darkred"))
-#There is an outlier who is CM 176 - I am willing to throw this individual out since he is the only one of it's kind
-#all <- subset(all, all$ID != "CM176")
-outliers <- list(c(ID = "CM176"))
-```
-
-There is a nice relationship between carapace length and wet weight. However, there was an outlier. I have thrown it out since it's the ONLY one so far off, but I have checked and data was entered correctly.
-
-#### Death Count Among Species and Trial
+#### Death Count Among Species and Trial (data includes those who died (prvious feed points before death))
 
 ```{R, echo = FALSE, warning = FALSE}
 #Making a graph for counts
@@ -226,30 +240,125 @@ ggplot(death, aes(x = as.factor(Trial), y = Count, fill = Life)) + facet_wrap(~S
 #### Amount of who did not eat by species and trial
 
 ```{R, echo = FALSE, warning = FALSE}
-ggplot(EatDF, aes(x = Trial.x, fill = Species.x)) + geom_histogram(stat="count") + facet_wrap(~Period)
+all$eaten <- factor(all$eaten, levels = c("YES", "NO"))
+all$Species.x <- factor(all$Species.x, levels = c("HS", "CM", "CI"))
+ggplot(all, aes(x = Trial.x, fill = eaten)) + geom_bar(stat = "count") + facet_wrap(~Species.x)+
+  scale_fill_manual(values = c("YES" = "darkolivegreen4",
+                                "NO"="darkred"))
+#Amount of those who are still eating vs not eating
+all$still_eating <- factor(all$still_eating, leve = c("NO", "YES"))
+ggplot(all, aes(x = Trial.x, fill = still_eating))+ geom_bar(stat = "count") + facet_wrap(~Species.x)+
+  ggtitle("Amount of those who are still eating vs not eating") +
+  scale_fill_manual(values = c("YES" = "darkolivegreen4",
+                                "NO"="darkred"))
 ```
 
-Looking at how much food gains or loses (not by being eaten, but by being in saltwater)
+####OUTLIER SEARCH
 
-```{R, echo = FALSE, warning = FALSE}
-holddf <- subset(all, grepl("DE", all$Notes.x, fixed = TRUE))
+```{r, fig.show="hold", out.width="50%", echo = FALSE, warning = FALSE}
+ggplot(all, aes(y = CL, color = Species.x)) + geom_boxplot() +
+  ggtitle("Species Comparison between Carapace Length")+
+  scale_color_manual(values = c("CI" = "darkorange",
+                                "CM"="darkgreen",
+                                "HS"="darkred"))
 
-```
+ggplot(all, aes(y = proportion.eaten, color = Species.x)) + geom_boxplot() +
+  ggtitle("Species Comparison Between Proportion Eaten")+
+  scale_color_manual(values = c("CI" = "darkorange",
+                                "CM"="darkgreen",
+                                "HS"="darkred"))
 
-#### Food Type Effects on Proportion Eaten
+# Carapace Length and Wet Weight Comparison between species
 
-```{R, echo = FALSE, warning = FALSE}
-ggplot(all, aes(x = all$Food, y = proportion.eaten, fill = Species.x)) + geom_boxplot()+
+ggplot(master, aes(x = WW, y = CL, color = Species)) + geom_point()+
+  ggtitle("Carapace Length and Wet Weight Comparison between species")+
+  scale_color_manual(values = c("Irroratus" = "darkorange",
+                                "Carcinus"="darkgreen",
+                                "Hemigrapsus"="darkred"))
+
+
+#There is an outlier who is CM 176 - I am willing to throw this individual out since he is the only one of it's kind
+#all <- subset(all, all$ID != "CM176")
+outliers <- list(c(ID = "CM176"))
+
+#Pretty normal - looking good
+# Checking for Outliers and that wet weight is normal
+holddf <- subset(master, master$Species == "Irroratus")
+ggplot(holddf, aes(x = WW)) + geom_histogram(binwidth = 25, fill = "darkorange", color = "black") + facet_wrap(~Species, scales = "free") + ggtitle("Wet weight for Cancer")
+
+holddf <- subset(master, master$Species == "Carcinus")
+ggplot(holddf, aes(x = WW)) + geom_histogram(binwidth = 15, fill = "darkgreen", color = "black") + facet_wrap(~Species, scales = "free") + ggtitle("Wet weight for Carcinus")
+
+holddf <- subset(master, master$Species == "Hemigrapsus")
+ggplot(holddf, aes(x = WW)) + geom_histogram(binwidth = 1, fill = "darkred", color = "black") + facet_wrap(~Species, scales = "free") + ggtitle("Wet weight for Hemigrapsus")
+
+#We can check if there are differences in weight weight between Species and Trial through some quick models
+holddf <- subset(master, master$Species == "Irroratus")
+mod <- glm(holddf$WW ~ holddf$Trial * holddf$Period)
+summary(mod)
+
+holddf <- subset(master, master$Species == "Carcinus")
+mod <- glm(holddf$WW ~ holddf$Trial * holddf$Period)
+summary(mod)
+
+holddf <- subset(master, master$Species == "Hemigrapsus")
+mod <- glm(holddf$WW ~ holddf$Trial * holddf$Period)
+summary(mod)
+
+#NO DIFFERENCE FOR SIZE BETWEEN TRIAL AND PERIOD FOR EACH SPECIES WOOOOOOOO
+
+#Looking more specifically at each outlier for weight to see if they acted as expected or not. Checking in on the outlier for rock and hemi
+#CI117
+holddf <- subset(all, all$ID == "CI117")
+ggplot(holddf, aes(x = Date.x, y = proportion.eaten)) + geom_point() + geom_smooth(method = "loess", se = FALSE) + ggtitle("Proportion eaten by CI117 in 18 C in period 2")
+
+#HS92
+holddf <- subset(all, all$ID == "HS92")
+ggplot(holddf, aes(x = Date.x, y = proportion.eaten)) + geom_point() + geom_smooth(method = "loess", se = FALSE) + ggtitle("Proportion eaten by HS92 in 26 C in period 2")
+
+#HS92
+holddf <- subset(all, all$ID == "CM176")
+ggplot(holddf, aes(x = Date.x, y = proportion.eaten)) + geom_point() + geom_smooth(method = "loess", se = FALSE) + ggtitle("Proportion eaten by CM176 in 20 C in period 2")
+
+# Plotting the proportion eaten to see outliers and normality
+ggplot(all, aes(x = proportion.eaten, fill = Species.x)) + geom_histogram(binwidth = 0.01) + facet_wrap(~Species.x, scales = "free") + ggtitle("Proportion eaten by species")+
   scale_fill_manual(values = c("CI" = "darkorange",
                                 "CM"="darkgreen",
                                 "HS"="darkred"))
+#everyone looks normal except for hemigrapsus which has some trialing end points
 ```
 
-Maybe looks like Hemigrapsus prefers squid a little more than clam? Although it's close enough to leave it be. Perhaps we should run statistical tests on it.
+-   *Cancer irroratus* are larger than the other two species followed by *Carcinus meanus* then the smallest as *Hemigrapsus*.
 
-#### Statistical Test to see if Squid is preferred over Clam for all 3 species
+-   The pattern is opposite when it comes to the amount they've eaten proportionally. So *Hemigrapsus* eats the most and *Cancer irroratus* eats the least.
 
-```{R, warning = FALSE}
+There is a nice relationship between carapace length and wet weight. However, there was an outlier. I have thrown it out since it's the ONLY one so far off, but I have checked and data was entered correctly.
+
+For each species on wet weight normality:
+
+-Cancer: Pretty normal
+
+-Green crab: Normal with some outliers
+
+-Hemi: Normal with some outliers
+
+It seems like Cancer crabs have a left leaning normality curve. Green crabs have a normal spread. Hemigrapsus have a left leaning curve as well. Unsure if this is even a valid graph because it's kind of what we expected if Cancer crabs are all tanking 0's due to it being too hot.
+
+#### FOOD EFFECTS
+
+```{R, echo = FALSE, warning = FALSE}
+#Looking at how much food gains or loses (not by being eaten, but by being in saltwater)
+holddf <- subset(all, grepl("DE", all$Notes.x, fixed = TRUE))
+ggplot(holddf, aes(x = Trial.x, y = proportion.eaten, color = Species.x)) + geom_boxplot() + ggtitle("Looking at how much weight food gains or loses in Saltwater")
+
+# Food Type Effects on Proportion Eaten
+
+ggplot(all, aes(x = all$Food, y = proportion.eaten, fill = Species.x)) + geom_boxplot()+ ggtitle("Food Type Effects on Proportion Eaten")
+  scale_fill_manual(values = c("CI" = "darkorange",
+                                "CM"="darkgreen",
+                                "HS"="darkred"))
+
+# Statistical Test to see if Squid is preferred over Clam for all 3 species
 holddf <- subset(all, all$Species.x == "HS")
 mod <- glm(holddf$proportion.eaten ~ holddf$Food)
 summary(mod)
@@ -264,60 +373,6 @@ summary(mod)
 ```
 
 After running a t-test on these, it seems like green crabs and Hemigrapsus have a slight preference for squid rather than clam. Meanwhile Cancer crabs have no preference between the food types.
-
-#### Checking for Outliers and that wet weight is normal
-
-```{r, figures-side, fig.show="hold", out.width="50%", echo = FALSE, warning = FALSE}
-#Pretty normal - looking good
-
-holddf <- subset(master, master$Species == "Irroratus")
-ggplot(holddf, aes(x = WW)) + geom_histogram(binwidth = 25, fill = "darkorange", color = "black") + facet_wrap(~Species, scales = "free") + ggtitle("Wet weight for Cancer")
-
-holddf <- subset(master, master$Species == "Carcinus")
-ggplot(holddf, aes(x = WW)) + geom_histogram(binwidth = 15, fill = "darkgreen", color = "black") + facet_wrap(~Species, scales = "free") + ggtitle("Wet weight for Carcinus")
-
-holddf <- subset(master, master$Species == "Hemigrapsus")
-ggplot(holddf, aes(x = WW)) + geom_histogram(binwidth = 1, fill = "darkred", color = "black") + facet_wrap(~Species, scales = "free") + ggtitle("Wet weight for Hemigrapsus")
-```
-
-Looking more specifically at each outlier for weight to see if they acted as expected or not. Checking in on the outlier for rock and hemi
-
-```{R}
-#CI117
-holddf <- subset(all, all$ID == "CI117")
-ggplot(holddf, aes(x = Date.x, y = proportion.eaten)) + geom_point() + geom_smooth(method = "loess", se = FALSE) + ggtitle("Proportion eaten by CI117 in 18 C in period 2")
-
-#HS92
-holddf <- subset(all, all$ID == "HS92")
-ggplot(holddf, aes(x = Date.x, y = proportion.eaten)) + geom_point() + geom_smooth(method = "loess", se = FALSE) + ggtitle("Proportion eaten by HS92 in 26 C in period 2")
-
-#HS92
-holddf <- subset(all, all$ID == "CM176")
-ggplot(holddf, aes(x = Date.x, y = proportion.eaten)) + geom_point() + geom_smooth(method = "loess", se = FALSE) + ggtitle("Proportion eaten by CM176 in 20 C in period 2")
-```
-
-For each species on wet weight normality:
-
--Cancer: Pretty normal
-
--Green crab: Normal with some outliers
-
--Hemi: Normal with some outliers
-
-#### Plotting the proportion eaten to see outliers and normality
-
-```{R, echo = FALSE}
-
-ggplot(all, aes(x = proportion.eaten, fill = Species.x)) + geom_histogram(binwidth = 0.01) + facet_wrap(~Species.x, scales = "free") + ggtitle("Proportion eaten by species")+
-  scale_fill_manual(values = c("CI" = "darkorange",
-                                "CM"="darkgreen",
-                                "HS"="darkred"))
-#everyone looks normal except for hemigrapsus which has some trialing end points
-```
-
-It seems like Cancer crabs have a left leaning normality curve. Green crabs have a normal spread. Hemigrapsus have a left leaning curve as well. Unsure if this is even a valid graph because it's kind of what we expected if Cancer crabs are all tanking 0's due to it being too hot.
-
-Actually, we need to look at general consumption over time.
 
 Before we can analyze the proportion eaten, we have to understand if the acclimation worked... To do this, we'll bin each week by each other and calculate averages to compare.
 
@@ -339,11 +394,6 @@ ggplot(holddf, aes(x = as.numeric(WeekNum), y = proportion.eaten, color = as.fac
   ggtitle("Proportion consumed over time for Period 1+2, Hemigrapsus") + geom_smooth(method = "loess", se = FALSE)+
   scale_color_manual(values = c("1" = "darkorange",
                                 "2"="darkgreen"))
-
-#new column that is the temperature difference from it's target temperature
-all$tempDiff <- abs(as.numeric(all$Trial.x) - all$Temperature)
-
-ggplot(all, aes(x = Date.x, y = tempDiff, color = as.factor(Period))) + geom_point() + facet_wrap(~Trial.x, scales = "free_x")
 ```
 
 ### Looking at the proportion eaten for each trial for each individual species (CI, CM, and HS)
@@ -366,4 +416,10 @@ ggplot(holddf,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = as.fact
   ggtitle("Proportion consumed over trial temperature for Period 1+2, Hemigrapsus") +
   scale_color_manual(values = c("1" = "pink",
                                 "2" = "darkred"))
+
+ggplot(all, aes(x = Trial.x, y = proportion.eaten, color = Species.x)) + geom_boxplot()+
+  ggtitle("Porpotion consumed over Trial Temperature for all Species")+
+  scale_color_manual(values = c("HS" = "darkred",
+                                 "CM" = "darkgreen",
+                                 "CI" = "darkorange"))
 ```
