@@ -106,8 +106,6 @@ for(i in 1:nrow(all)){
   }
 }
 
-holddf <- subset(all, all$ID == "CI99")
-
 #Making all those who did not eat to 0
 #Maybe don't need? Blank out for now "DE", keep other
 for(i in 1:nrow(all)){
@@ -131,11 +129,12 @@ for(i in 1:nrow(all)){
   }
 }
 
+original <- all
+
 #removing mussel and mackerel feed
 all <- subset(all, all$Food != "Mussels")
 all <- subset(all, all$Food != "Mackerel")
 
-original <- all
 
 #saving those who molted in an original dataset
 original_molted <- all
@@ -159,10 +158,14 @@ all <- all[-array,]
 array <- c()
 
 #Removing these dates because feeding was not following a strict schedule (fed two days back to back)
-all <- subset(all, (all$WeekNum != "1" | all$Trial.x != "16"))
+all <- subset(all, !(WeekNum == 1 & Trial.x == 16))
+all <- subset(all, !(WeekNum == 1 & Trial.x == 22 & Period == 1))
+
+holddf <- subset(all, Trial.x == 22)
 
 #Changing trials 16 and 18 to be one.
 all$Trial.x <- ifelse(all$Trial.x == "16", "18", all$Trial.x)
+original$Trial.x <- ifelse(original$Trial.x == "16", "18", original$Trial.x)
 
 #Here, I am marking all those who did not eat
 EatDF <- subset(all, grepl("DE", all$Notes.x, fixed = TRUE))
@@ -203,6 +206,16 @@ for(i in 1:nrow(all)){
 }
 
 all$timeInBucket <- inBucket
+
+#because we removed the first week from trials 1 and 2, to get the final week, I'll just subtract one from the value to line it up so that week 4 equals week 3 and make it easier for me to graph
+
+all$WeekNum <- ifelse((all$Trial.x == "18" & all$WeekNum == 2 & all$Period == 1), "1", all$WeekNum)
+all$WeekNum <- ifelse((all$Trial.x == "18" & all$WeekNum == 3 & all$Period == 1), "2", all$WeekNum)
+all$WeekNum <- ifelse((all$Trial.x == "18" & all$WeekNum == 4 & all$Period == 1), "3", all$WeekNum)
+
+all$WeekNum <- ifelse((all$Trial.x == "22" & all$WeekNum == 2 & all$Period == 1), "1", all$WeekNum)
+all$WeekNum <- ifelse((all$Trial.x == "22" & all$WeekNum == 3 & all$Period == 1), "2", all$WeekNum)
+all$WeekNum <- ifelse((all$Trial.x == "22" & all$WeekNum == 4 & all$Period == 1), "3", all$WeekNum)
 ```
 
 ## Data Exploration
@@ -231,7 +244,8 @@ Hemigrapsus at 26 C is much smaller because I removed a lot of those who molted
 death$Species <- factor(death$Species, levels = c("HS", "CM", "CI"))
 ggplot(death, aes(x = as.factor(Trial), y = Count, fill = Life)) + facet_wrap(~Species) + geom_bar(stat='identity')+
   scale_fill_manual(values = c("ALIVE" = "darkolivegreen4",
-                                "DEAD"="darkred"))
+                                "DEAD"="darkred"))+
+  xlab("Trial Temperature")+ggtitle("The Amount of Crabs that Died in the Experiment")
 
 ```
 
@@ -244,13 +258,14 @@ all$eaten <- factor(all$eaten, levels = c("YES", "NO"))
 all$Species.x <- factor(all$Species.x, levels = c("HS", "CM", "CI"))
 ggplot(all, aes(x = Trial.x, fill = eaten)) + geom_bar(stat = "count") + facet_wrap(~Species.x)+
   scale_fill_manual(values = c("YES" = "darkolivegreen4",
-                                "NO"="darkred"))
+                                "NO"="darkred"))+ggtitle("Amount of Times Individuals did not eat")+xlab("Trial Temperature") + ylab("Count")
+
 #Amount of those who are still eating vs not eating
 all$still_eating <- factor(all$still_eating, leve = c("NO", "YES"))
 ggplot(all, aes(x = Trial.x, fill = still_eating))+ geom_bar(stat = "count") + facet_wrap(~Species.x)+
   ggtitle("Amount of those who are still eating vs not eating") +
   scale_fill_manual(values = c("YES" = "darkolivegreen4",
-                                "NO"="darkred"))
+                                "NO"="darkred"))+xlab("Trial Temperature") + ylab("Count")
 ```
 
 ####OUTLIER SEARCH
@@ -349,14 +364,17 @@ It seems like Cancer crabs have a left leaning normality curve. Green crabs have
 ```{R, echo = FALSE, warning = FALSE}
 #Looking at how much food gains or loses (not by being eaten, but by being in saltwater)
 holddf <- subset(all, grepl("DE", all$Notes.x, fixed = TRUE))
-ggplot(holddf, aes(x = Trial.x, y = proportion.eaten, color = Species.x)) + geom_boxplot() + ggtitle("Looking at how much weight food gains or loses in Saltwater")
-
-# Food Type Effects on Proportion Eaten
-
-ggplot(all, aes(x = all$Food, y = proportion.eaten, fill = Species.x)) + geom_boxplot()+ ggtitle("Food Type Effects on Proportion Eaten")
+ggplot(holddf, aes(x = Trial.x, y = proportion.eaten, fill = Species.x)) + geom_boxplot() + ggtitle("How much weight food gains or loses in Saltwater")+
   scale_fill_manual(values = c("CI" = "darkorange",
                                 "CM"="darkgreen",
                                 "HS"="darkred"))
+
+# Food Type Effects on Proportion Eaten
+
+ggplot(all, aes(x = all$Food, y = proportion.eaten, fill = Species.x)) + geom_boxplot()+ ggtitle("Food Type Effects on Proportion Eaten")+
+  scale_fill_manual(values = c("CI" = "darkorange",
+                                "CM"="darkgreen",
+                                "HS"="darkred")) + xlab("Food Type") + ylab("Amount Eaten (proportionally)")
 
 # Statistical Test to see if Squid is preferred over Clam for all 3 species
 holddf <- subset(all, all$Species.x == "HS")
@@ -374,52 +392,135 @@ summary(mod)
 
 After running a t-test on these, it seems like green crabs and Hemigrapsus have a slight preference for squid rather than clam. Meanwhile Cancer crabs have no preference between the food types.
 
+Does Size have an effect on consumption?
+```{R echo = FALSE}
+ggplot(all, aes(x = WW, y = proportion.eaten, color = Species.x)) + geom_point() +geom_smooth(aes(x = WW, y = proportion.eaten,group = Species.x),   
+    color = "black",    
+    se = FALSE,
+    inherit.aes = FALSE,
+    method = "lm")+  
+  scale_x_log10() +
+  scale_color_manual(values = c("CI" = "darkorange",
+                                "CM"="darkgreen",
+                                "HS"="darkred")) + ylab("Amount Eaten (proportionally)") +xlab("WW (log scale)") +ggtitle("Amount Eaten by Weight") + labs(color = "Species")
+```
+
+#### Schedule
+
+```{R echo = FALSE}
+date_list <- data.frame(date = NA, trial = NA, period = NA)
+date_list$date <- as.Date(date_list$date)
+trial_list <- list("18", "20", "22", "24", "26")
+
+for(a in 1:2){
+  for(i in 1:length(trial_list)){
+  holddf <- subset(original, original$Trial.x == trial_list[i] & original$Period == a)
+  dates <- unique(holddf$Date.x)
+  for(j in 1:length(dates)){
+    date_list[nrow(date_list) + 1,] <- list(dates[j], trial_list[i], a)
+  }
+}
+}
+date_list <- na.omit(date_list)
+
+date_list$trial <- unlist(date_list$trial)
+date_list$weekday <- weekdays(date_list$date)
+date_list$month <- month(date_list$date)
+date_list$day <- format(as.Date(date_list$date,format="%y-%m-%d"), format = "%d")
+
+date_list$weekday <- as.factor(date_list$weekday)
+date_list$month <- as.factor(date_list$month)
+date_list$day <- as.factor(date_list$day)
+
+date_list <- na.omit(date_list)
+date_list$day <- as.numeric(as.character(date_list$day))  # "09" → 9
+date_list$day <- factor(date_list$day, levels = 1:31)
+
+ggplot(date_list, aes(x = day, y = as.factor(trial), fill = as.factor(period))) +
+  geom_tile(color = "black",alpha = 0.5) +
+  facet_wrap(~ month, ncol = 1) +
+  coord_fixed() +
+  scale_x_discrete(drop = FALSE)+
+  ggtitle("Trial schedule for the Summer of 2025")+
+  xlab("Day")+
+  ylab("Trial Temperature")+ guides(fill=guide_legend(title="Period")) + theme_classic() +
+  scale_fill_manual(values = c("1" = "red4",
+                                "2"="blue4"))
+```
+
 Before we can analyze the proportion eaten, we have to understand if the acclimation worked... To do this, we'll bin each week by each other and calculate averages to compare.
 
 ```{R echo = FALSE, warning = FALSE}
 holddf <- subset(all, all$Species.x == "CI")
 ggplot(holddf, aes(x = as.numeric(WeekNum), y = proportion.eaten, color = as.factor(Period))) + geom_point() + facet_wrap(~Trial.x) +
   ggtitle("Proportion consumed over time for Period 1+2, Cancer Irroratus") + geom_smooth(method = "loess", se = FALSE)+
-  scale_color_manual(values = c("1" = "darkorange",
-                                "2"="darkgreen"))
+  scale_color_manual(values = c("1" = "red4",
+                                "2"="blue4"))+xlab("Week Number") + ylab("Amount Eaten (Proportionally)") + labs(color = "Period")
 
 holddf <- subset(all, all$Species.x == "CM")
 ggplot(holddf, aes(x = as.numeric(WeekNum), y = proportion.eaten, color = as.factor(Period))) + geom_point() + facet_wrap(~Trial.x) +
   ggtitle("Proportion consumed over time for Period 1+2, Carcinus maenus") + geom_smooth(method = "loess", se = FALSE)+
-  scale_color_manual(values = c("1" = "darkorange",
-                                "2"="darkgreen"))
+  scale_color_manual(values = c("1" = "red4",
+                                "2"="blue4"))+xlab("Week Number") + ylab("Amount Eaten (Proportionally)") + labs(color = "Period")
 
 holddf <- subset(all, all$Species.x == "HS")
 ggplot(holddf, aes(x = as.numeric(WeekNum), y = proportion.eaten, color = as.factor(Period))) + geom_point() + facet_wrap(~Trial.x) +
   ggtitle("Proportion consumed over time for Period 1+2, Hemigrapsus") + geom_smooth(method = "loess", se = FALSE)+
-  scale_color_manual(values = c("1" = "darkorange",
-                                "2"="darkgreen"))
+  scale_color_manual(values = c("1" = "red4",
+                                "2"="blue4"))+xlab("Week Number") + ylab("Amount Eaten (Proportionally)") + labs(color = "Period")
 ```
 
 ### Looking at the proportion eaten for each trial for each individual species (CI, CM, and HS)
 
 ```{R echo = FALSE, warning = FALSE}
-holddf <- subset(all, all$Species.x == "CI")
-ggplot(holddf,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = as.factor(Period))) + geom_point() + geom_smooth(method = "loess")+ 
-  ggtitle("Proportion consumed over trial temperature for Period 1+2, Cancer irroratus") +
-  scale_color_manual(values = c("1" = "orange1",
-                                "2" = "orange4"))
+#only accounting for final week of trial
 
-holddf <- subset(all, all$Species.x == "CM")
-ggplot(holddf,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = as.factor(Period))) + geom_point() + geom_smooth(method = "loess") +
-  ggtitle("Proportion consumed over trial temperature for Period 1+2, Carcinus meanus") +
-  scale_color_manual(values = c("1" = "lightgreen",
-                                "2" = "darkgreen"))
-
-holddf <- subset(all, all$Species.x == "HS")
-ggplot(holddf,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = as.factor(Period))) + geom_point() + geom_smooth(method = "loess") +
-  ggtitle("Proportion consumed over trial temperature for Period 1+2, Hemigrapsus") +
-  scale_color_manual(values = c("1" = "pink",
-                                "2" = "darkred"))
-
-ggplot(all, aes(x = Trial.x, y = proportion.eaten, color = Species.x)) + geom_boxplot()+
-  ggtitle("Porpotion consumed over Trial Temperature for all Species")+
+ggplot(all,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = Species.x)) + geom_point() + geom_smooth(method = "loess")+ 
+  ggtitle("Proportion consumed over trial temperature") + scale_y_log10()+
+  xlab("Trial Temperature") + 
+  ylab("Amount Eaten (Proportionally, log10)")+
   scale_color_manual(values = c("HS" = "darkred",
                                  "CM" = "darkgreen",
-                                 "CI" = "darkorange"))
+                                 "CI" = "darkorange"))+ 
+  guides(fill=guide_legend(title="Species"))+ labs(color = "Period")
+
+ggplot(all,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = Species.x)) + geom_point() + geom_smooth(method = "loess")+ 
+  ggtitle("Proportion consumed over trial temperature") + scale_y_log10()+
+  xlab("Trial Temperature") + 
+  ylab("Amount Eaten (Proportionally, log10)")+
+  scale_color_manual(values = c("HS" = "darkred",
+                                 "CM" = "darkgreen",
+                                 "CI" = "darkorange"))+ 
+  guides(fill=guide_legend(title="Species"))+
+  coord_cartesian(ylim = c(.001, .15))+ labs(color = "Period")
+
+ggplot(all,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = Species.x)) + geom_point() + geom_smooth(method = "loess")+ 
+  ggtitle("Proportion consumed over trial temperature by Period") + scale_y_log10()+
+  facet_wrap(~Period)+
+  xlab("Trial Temperature") + 
+  ylab("Amount Eaten (Proportionally, log10)")+
+  scale_color_manual(values = c("HS" = "darkred",
+                                 "CM" = "darkgreen",
+                                 "CI" = "darkorange"))+ 
+  guides(fill=guide_legend(title="Species"))+ labs(color = "Period")
+
+ggplot(all,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = Species.x)) + geom_point() + geom_smooth(method = "loess")+ 
+  ggtitle("Proportion consumed over trial temperature by Period") + scale_y_log10()+
+  facet_wrap(~Period)+
+  xlab("Trial Temperature") + 
+  ylab("Amount Eaten (Proportionally, log10)")+
+  scale_color_manual(values = c("HS" = "darkred",
+                                 "CM" = "darkgreen",
+                                 "CI" = "darkorange"))+ 
+  guides(fill=guide_legend(title="Species"))+
+  coord_cartesian(ylim = c(.001, .15))+ labs(color = "Period")
+
+ggplot(all, aes(x = Trial.x, y = proportion.eaten, color = Species.x)) + geom_boxplot()+
+  ggtitle("Porpotion Consumed over Trial Temperature for all Species")+
+  scale_color_manual(values = c("HS" = "darkred",
+                                 "CM" = "darkgreen",
+                                 "CI" = "darkorange"))+
+  xlab("Trial Temperature") + 
+  ylab("Amount Eaten (Proportionally)")+ 
+  guides(fill=guide_legend(title="Species"))
 ```
