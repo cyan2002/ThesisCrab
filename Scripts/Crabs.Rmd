@@ -33,6 +33,7 @@ crabdata <- read.csv("Feeding.csv", h=T)
 death <- read.csv("DeathCount.csv", h=T)
 master <- read.csv("Master.csv", h=T)
 deathMeta <- read.csv("Death.csv", h=T)
+husbandry <- read.csv("Husbandry.csv", h=T)
 ```
 
 #### Cleaning up data for use
@@ -216,6 +217,23 @@ all$WeekNum <- ifelse((all$Trial.x == "18" & all$WeekNum == 4 & all$Period == 1)
 all$WeekNum <- ifelse((all$Trial.x == "22" & all$WeekNum == 2 & all$Period == 1), "1", all$WeekNum)
 all$WeekNum <- ifelse((all$Trial.x == "22" & all$WeekNum == 3 & all$Period == 1), "2", all$WeekNum)
 all$WeekNum <- ifelse((all$Trial.x == "22" & all$WeekNum == 4 & all$Period == 1), "3", all$WeekNum)
+
+#I just want to see what removing those who did not eat (in order to predict who was molting...) will do to hemi and carcinus
+#making a list of those who did not eat for carcinus and hemi
+DE_df <- list()
+unique_indiv <- list()
+holddf <- subset(all, all$Species.x == "HS" | all$Species.x == "CM")
+DE_df <- ifelse(grepl("DE", holddf$Notes.x, fixed = TRUE), holddf$ID, NA)
+unique_indiv <-  unique(na.omit(DE_df))
+
+EatDF <- all
+
+for(i in 1:length(unique_indiv)){
+  EatDF <- subset(EatDF, EatDF$ID != unique_indiv[i])
+}
+
+#husbandry sheet prep
+husbandry <- subset(husbandry, husbandry$Trial != "NONE")
 ```
 
 ## Data Exploration
@@ -523,4 +541,50 @@ ggplot(all, aes(x = Trial.x, y = proportion.eaten, color = Species.x)) + geom_bo
   xlab("Trial Temperature") + 
   ylab("Amount Eaten (Proportionally)")+ 
   guides(fill=guide_legend(title="Species"))
+```
+
+Regraphing Hemi and Carcinus without those who didn't eat (prediction of molt)
+```{R echo = FALSE, warning = FALSE}
+ggplot(EatDF,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = Species.x)) + geom_point() + geom_smooth(method = "loess")+ 
+  ggtitle("Proportion consumed over trial temperature") + scale_y_log10()+
+  xlab("Trial Temperature") + 
+  ylab("Amount Eaten (Proportionally, log10)")+
+  scale_color_manual(values = c("HS" = "darkred",
+                                 "CM" = "darkgreen",
+                                 "CI" = "darkorange"))+ 
+  guides(fill=guide_legend(title="Species"))+ labs(color = "Period")
+
+ggplot(EatDF,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = Species.x)) + geom_point() + geom_smooth(method = "loess")+ 
+  ggtitle("Proportion consumed over trial temperature") + scale_y_log10()+
+  xlab("Trial Temperature") + 
+  ylab("Amount Eaten (Proportionally, log10)")+
+  scale_color_manual(values = c("HS" = "darkred",
+                                 "CM" = "darkgreen",
+                                 "CI" = "darkorange"))+ 
+  guides(fill=guide_legend(title="Species"))+
+  coord_cartesian(ylim = c(.001, .15))+ labs(color = "Period")
+
+ggplot(EatDF,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = Species.x)) + geom_point() + geom_smooth(method = "loess")+ 
+  ggtitle("Proportion consumed over trial temperature by Period") + scale_y_log10()+
+  facet_wrap(~Period)+
+  xlab("Trial Temperature") + 
+  ylab("Amount Eaten (Proportionally, log10)")+
+  scale_color_manual(values = c("HS" = "darkred",
+                                 "CM" = "darkgreen",
+                                 "CI" = "darkorange"))+ 
+  guides(fill=guide_legend(title="Species"))+ labs(color = "Period")
+
+ggplot(EatDF,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = Species.x)) + geom_point() + geom_smooth(method = "loess")+ 
+  ggtitle("Proportion consumed over trial temperature by Period") + scale_y_log10()+
+  facet_wrap(~Period)+
+  xlab("Trial Temperature") + 
+  ylab("Amount Eaten (Proportionally, log10)")+
+  scale_color_manual(values = c("HS" = "darkred",
+                                 "CM" = "darkgreen",
+                                 "CI" = "darkorange"))+ 
+  guides(fill=guide_legend(title="Species"))+
+  coord_cartesian(ylim = c(.001, .15))+ labs(color = "Period")
+```
+```{R, echo = FALSE, warning = FALSE}
+ggplot(husbandry, aes(x = Date, y = Temperature, color = Trial)) + geom_point() + facet_wrap(~System)
 ```
