@@ -10,7 +10,7 @@ Made by Chance Yan Last Edit:
 
 **Predictions:**
 
--   Prediction 1: The asian shore crab will have the highest consumption TPC/thermal niche compared to green crabs and cancer crabs. Followed by green crabs having the second highest TPC/thermal niche. Meanwhile, cancer crabs (Cancer borealis preferred, but Cancer irroratus backup - more on this later)
+-   Prediction 1: The asian shore crab will have the highest consumption TPC/thermal niche compared to green crabs and cancer crabs. Followed by green crabs having the second highest TPC/thermal niche. Meanwhile, cancer crabs (*Cancer borealis* preferred, but *Cancer irroratus* backup - more on this later)
 
 -   Prediction 2:There is no difference in consumption TPC between green crabs, asian shore crabs, and cancer crabs. 
 
@@ -28,12 +28,15 @@ Made by Chance Yan Last Edit:
 library(ggplot2)
 library(lubridate)
 library(hms)
+library(dplyr)
+library(emmeans)
 setwd("/Users/chanceyan/Documents/R/ThesisCrab/Data")
 crabdata <- read.csv("Feeding.csv", h=T)
 death <- read.csv("DeathCount.csv", h=T)
 master <- read.csv("Master.csv", h=T)
 deathMeta <- read.csv("Death.csv", h=T)
 husbandry <- read.csv("Husbandry.csv", h=T)
+checkout <- read.csv("CheckOut.csv", h=T)
 ```
 
 #### Cleaning up data for use
@@ -167,6 +170,7 @@ holddf <- subset(all, Trial.x == 22)
 #Changing trials 16 and 18 to be one.
 all$Trial.x <- ifelse(all$Trial.x == "16", "18", all$Trial.x)
 original$Trial.x <- ifelse(original$Trial.x == "16", "18", original$Trial.x)
+master$Trial <- ifelse(master$Trial == "16", "18", master$Trial)
 
 #Here, I am marking all those who did not eat
 EatDF <- subset(all, grepl("DE", all$Notes.x, fixed = TRUE))
@@ -238,7 +242,7 @@ husbandry <- subset(husbandry, husbandry$Trial != "NONE")
 
 ## Data Exploration
 
-### Basic information on the dataset
+### Basic information on the dataset (Post Data Modifications)
 
 ```{r echo = FALSE, warning = FALSE}
 c <- tapply(master$ID, list(master$Species, master$Trial), FUN = length)
@@ -255,7 +259,7 @@ kable(a, caption = "Average Carapace Length for each species, trial")
 
 Hemigrapsus at 26 C is much smaller because I removed a lot of those who molted
 
-#### Death Count Among Species and Trial (data includes those who died (prvious feed points before death))
+### Death Count Among Species and Trial (data includes those who died (prvious feed points before death))
 
 ```{R, echo = FALSE, warning = FALSE}
 #Making a graph for counts
@@ -286,7 +290,7 @@ ggplot(all, aes(x = Trial.x, fill = still_eating))+ geom_bar(stat = "count") + f
                                 "NO"="darkred"))+xlab("Trial Temperature") + ylab("Count")
 ```
 
-####OUTLIER SEARCH
+## Outlier Search
 
 ```{r, fig.show="hold", out.width="50%", echo = FALSE, warning = FALSE}
 ggplot(all, aes(y = CL, color = Species.x)) + geom_boxplot() +
@@ -328,15 +332,21 @@ ggplot(holddf, aes(x = WW)) + geom_histogram(binwidth = 1, fill = "darkred", col
 #We can check if there are differences in weight weight between Species and Trial through some quick models
 holddf <- subset(master, master$Species == "Irroratus")
 mod <- glm(holddf$WW ~ holddf$Trial * holddf$Period)
-summary(mod)
+emm <- emmeans(mod, ~ Trial*Period)
+pairs_data <- pairs(emm)
+pairs_data
 
 holddf <- subset(master, master$Species == "Carcinus")
 mod <- glm(holddf$WW ~ holddf$Trial * holddf$Period)
-summary(mod)
+emm <- emmeans(mod, ~ Trial*Period)
+pairs_data <- pairs(emm)
+pairs_data
 
 holddf <- subset(master, master$Species == "Hemigrapsus")
 mod <- glm(holddf$WW ~ holddf$Trial * holddf$Period)
-summary(mod)
+emm <- emmeans(mod, ~ Trial*Period)
+pairs_data <- pairs(emm)
+pairs_data
 
 #NO DIFFERENCE FOR SIZE BETWEEN TRIAL AND PERIOD FOR EACH SPECIES WOOOOOOOO
 
@@ -377,9 +387,13 @@ For each species on wet weight normality:
 
 It seems like Cancer crabs have a left leaning normality curve. Green crabs have a normal spread. Hemigrapsus have a left leaning curve as well. Unsure if this is even a valid graph because it's kind of what we expected if Cancer crabs are all tanking 0's due to it being too hot.
 
-#### FOOD EFFECTS
+The only differences between size of trial and species is Hemigrapsus for Trial 26 between period 1 and 2 by about 3 grams of differnece. The other difference is for Trial 24 and 26 in period 2.
 
-```{R, echo = FALSE, warning = FALSE}
+## Relationships
+
+#### Food Effects
+
+```{R, echo=FALSE,results='hide',fig.keep='all'}
 #Looking at how much food gains or loses (not by being eaten, but by being in saltwater)
 holddf <- subset(all, grepl("DE", all$Notes.x, fixed = TRUE))
 ggplot(holddf, aes(x = Trial.x, y = proportion.eaten, fill = Species.x)) + geom_boxplot() + ggtitle("How much weight food gains or loses in Saltwater")+
@@ -388,29 +402,38 @@ ggplot(holddf, aes(x = Trial.x, y = proportion.eaten, fill = Species.x)) + geom_
                                 "HS"="darkred"))
 
 # Food Type Effects on Proportion Eaten
-
 ggplot(all, aes(x = all$Food, y = proportion.eaten, fill = Species.x)) + geom_boxplot()+ ggtitle("Food Type Effects on Proportion Eaten")+
   scale_fill_manual(values = c("CI" = "darkorange",
                                 "CM"="darkgreen",
                                 "HS"="darkred")) + xlab("Food Type") + ylab("Amount Eaten (proportionally)")
 
 # Statistical Test to see if Squid is preferred over Clam for all 3 species
+print("Hemigrapsus")
 holddf <- subset(all, all$Species.x == "HS")
 mod <- glm(holddf$proportion.eaten ~ holddf$Food)
-summary(mod)
+emm <- emmeans(mod, ~ Food)
+pairs_data <- pairs(emm)
+pairs_data
 
+print("Carcinus")
 holddf <- subset(all, all$Species.x == "CM")
 mod <- glm(holddf$proportion.eaten ~ holddf$Food)
-summary(mod)
+emm <- emmeans(mod, ~ Food)
+pairs_data <- pairs(emm)
+pairs_data
 
+print("Cancer")
 holddf <- subset(all, all$Species.x == "CI")
 mod <- glm(holddf$proportion.eaten ~ holddf$Food)
-summary(mod)
+emm <- emmeans(mod, ~ Food)
+pairs_data <- pairs(emm)
+pairs_data
 ```
 
 After running a t-test on these, it seems like green crabs and Hemigrapsus have a slight preference for squid rather than clam. Meanwhile Cancer crabs have no preference between the food types.
 
-Does Size have an effect on consumption?
+### Size effect on Consumption
+
 ```{R echo = FALSE}
 ggplot(all, aes(x = WW, y = proportion.eaten, color = Species.x)) + geom_point() +geom_smooth(aes(x = WW, y = proportion.eaten,group = Species.x),   
     color = "black",    
@@ -423,7 +446,7 @@ ggplot(all, aes(x = WW, y = proportion.eaten, color = Species.x)) + geom_point()
                                 "HS"="darkred")) + ylab("Amount Eaten (proportionally)") +xlab("WW (log scale)") +ggtitle("Amount Eaten by Weight") + labs(color = "Species")
 ```
 
-#### Schedule
+### Schedule
 
 ```{R echo = FALSE}
 date_list <- data.frame(date = NA, trial = NA, period = NA)
@@ -468,123 +491,165 @@ ggplot(date_list, aes(x = day, y = as.factor(trial), fill = as.factor(period))) 
 
 Before we can analyze the proportion eaten, we have to understand if the acclimation worked... To do this, we'll bin each week by each other and calculate averages to compare.
 
+### Checking for Acclimation
+
 ```{R echo = FALSE, warning = FALSE}
-holddf <- subset(all, all$Species.x == "CI")
-ggplot(holddf, aes(x = as.numeric(WeekNum), y = proportion.eaten, color = as.factor(Period))) + geom_point() + facet_wrap(~Trial.x) +
-  ggtitle("Proportion consumed over time for Period 1+2, Cancer Irroratus") + geom_smooth(method = "loess", se = FALSE)+
-  scale_color_manual(values = c("1" = "red4",
-                                "2"="blue4"))+xlab("Week Number") + ylab("Amount Eaten (Proportionally)") + labs(color = "Period")
 
-holddf <- subset(all, all$Species.x == "CM")
-ggplot(holddf, aes(x = as.numeric(WeekNum), y = proportion.eaten, color = as.factor(Period))) + geom_point() + facet_wrap(~Trial.x) +
-  ggtitle("Proportion consumed over time for Period 1+2, Carcinus maenus") + geom_smooth(method = "loess", se = FALSE)+
-  scale_color_manual(values = c("1" = "red4",
-                                "2"="blue4"))+xlab("Week Number") + ylab("Amount Eaten (Proportionally)") + labs(color = "Period")
+summary_df <- all %>%
+  group_by(Species.x, Trial.x, Period, WeekNum) %>%
+  summarise(
+    mean = mean(proportion.eaten),
+    se = sd(proportion.eaten) / sqrt(n())
+  )
 
-holddf <- subset(all, all$Species.x == "HS")
-ggplot(holddf, aes(x = as.numeric(WeekNum), y = proportion.eaten, color = as.factor(Period))) + geom_point() + facet_wrap(~Trial.x) +
-  ggtitle("Proportion consumed over time for Period 1+2, Hemigrapsus") + geom_smooth(method = "loess", se = FALSE)+
-  scale_color_manual(values = c("1" = "red4",
-                                "2"="blue4"))+xlab("Week Number") + ylab("Amount Eaten (Proportionally)") + labs(color = "Period")
+holddf <- subset(summary_df, summary_df$Species.x == "CI")
+
+ggplot(holddf, aes(x = as.numeric(WeekNum), y = mean, color = as.factor(Period))) + 
+  geom_point(position = position_dodge(width = 0.2)) + 
+  facet_wrap(~Trial.x) +
+  ggtitle("Proportion consumed over time for Period 1+2, Rock Crab") + 
+  geom_smooth(method = "loess", se = FALSE)+
+  scale_color_manual(values = c("1" = "red4","2"="blue4"))+
+  xlab("Week Number") + 
+  ylab("Amount Eaten (Proportionally)") + 
+  labs(color = "Period")+
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se), position = position_dodge(width = 0.2))
+
+holddf <- subset(summary_df, summary_df$Species.x == "CM")
+
+ggplot(holddf, aes(x = as.numeric(WeekNum), y = mean, color = as.factor(Period))) + 
+  geom_point(position = position_dodge(width = 0.2)) + 
+  facet_wrap(~Trial.x) +
+  ggtitle("Proportion consumed over time for Period 1+2, Green Crab") + 
+  geom_smooth(method = "loess", se = FALSE)+
+  scale_color_manual(values = c("1" = "red4","2"="blue4"))+
+  xlab("Week Number") + 
+  ylab("Amount Eaten (Proportionally)") + 
+  labs(color = "Period")+
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se), position = position_dodge(width = 0.2))
+
+holddf <- subset(summary_df, summary_df$Species.x == "HS")
+
+ggplot(holddf, aes(x = as.numeric(WeekNum), y = mean, color = as.factor(Period))) + 
+  geom_point(position = position_dodge(width = 0.2)) + 
+  facet_wrap(~Trial.x) +
+  ggtitle("Proportion consumed over time for Period 1+2, Asian Shore Crab") + 
+  geom_smooth(method = "loess", se = FALSE)+
+  scale_color_manual(values = c("1" = "red4","2"="blue4"))+
+  xlab("Week Number") + 
+  ylab("Amount Eaten (Proportionally)") + 
+  labs(color = "Period")+
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se), position = position_dodge(width = 0.2))
 ```
 
 ### Looking at the proportion eaten for each trial for each individual species (CI, CM, and HS)
 
-```{R echo = FALSE, warning = FALSE}
+```{R, echo=FALSE,results='hide',fig.keep='all'}
 #only accounting for final week of trial
+finalEat <- subset(all, all$WeekNum == 3)
 
-ggplot(all,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = Species.x)) + geom_point() + geom_smooth(method = "loess")+ 
-  ggtitle("Proportion consumed over trial temperature") + scale_y_log10()+
-  xlab("Trial Temperature") + 
-  ylab("Amount Eaten (Proportionally, log10)")+
-  scale_color_manual(values = c("HS" = "darkred",
-                                 "CM" = "darkgreen",
-                                 "CI" = "darkorange"))+ 
-  guides(fill=guide_legend(title="Species"))+ labs(color = "Period")
+summary_df <- finalEat %>%
+  group_by(Species.x, Trial.x, Period) %>%
+  summarise(
+    mean = mean(proportion.eaten),
+    se = sd(proportion.eaten) / sqrt(n())
+  )
 
-ggplot(all,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = Species.x)) + geom_point() + geom_smooth(method = "loess")+ 
-  ggtitle("Proportion consumed over trial temperature") + scale_y_log10()+
-  xlab("Trial Temperature") + 
-  ylab("Amount Eaten (Proportionally, log10)")+
-  scale_color_manual(values = c("HS" = "darkred",
-                                 "CM" = "darkgreen",
-                                 "CI" = "darkorange"))+ 
-  guides(fill=guide_legend(title="Species"))+
-  coord_cartesian(ylim = c(.001, .15))+ labs(color = "Period")
-
-ggplot(all,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = Species.x)) + geom_point() + geom_smooth(method = "loess")+ 
-  ggtitle("Proportion consumed over trial temperature by Period") + scale_y_log10()+
-  facet_wrap(~Period)+
-  xlab("Trial Temperature") + 
-  ylab("Amount Eaten (Proportionally, log10)")+
-  scale_color_manual(values = c("HS" = "darkred",
-                                 "CM" = "darkgreen",
-                                 "CI" = "darkorange"))+ 
-  guides(fill=guide_legend(title="Species"))+ labs(color = "Period")
-
-ggplot(all,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = Species.x)) + geom_point() + geom_smooth(method = "loess")+ 
-  ggtitle("Proportion consumed over trial temperature by Period") + scale_y_log10()+
-  facet_wrap(~Period)+
-  xlab("Trial Temperature") + 
-  ylab("Amount Eaten (Proportionally, log10)")+
-  scale_color_manual(values = c("HS" = "darkred",
-                                 "CM" = "darkgreen",
-                                 "CI" = "darkorange"))+ 
-  guides(fill=guide_legend(title="Species"))+
-  coord_cartesian(ylim = c(.001, .15))+ labs(color = "Period")
-
-ggplot(all, aes(x = Trial.x, y = proportion.eaten, color = Species.x)) + geom_boxplot()+
-  ggtitle("Porpotion Consumed over Trial Temperature for all Species")+
+ggplot(summary_df, aes(x = as.numeric(Trial.x), y = mean, color = Species.x)) + geom_point(position = position_dodge(width = 0.3))+
   scale_color_manual(values = c("HS" = "darkred",
                                  "CM" = "darkgreen",
                                  "CI" = "darkorange"))+
-  xlab("Trial Temperature") + 
-  ylab("Amount Eaten (Proportionally)")+ 
-  guides(fill=guide_legend(title="Species"))
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
+                width = 0.1, size = 0.8, position = position_dodge(width = 0.3)) +
+  geom_smooth(method = "loess", se = FALSE)+ scale_y_log10()+
+  ylab("Logged Mean of Proportion Eaten")+
+  xlab("Trial Temperature") + labs(color = "Species")+
+  ggtitle("Proportion Consumed over Trial Temperature")
 ```
 
-Regraphing Hemi and Carcinus without those who didn't eat (prediction of molt)
-```{R echo = FALSE, warning = FALSE}
-ggplot(EatDF,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = Species.x)) + geom_point() + geom_smooth(method = "loess")+ 
-  ggtitle("Proportion consumed over trial temperature") + scale_y_log10()+
-  xlab("Trial Temperature") + 
-  ylab("Amount Eaten (Proportionally, log10)")+
-  scale_color_manual(values = c("HS" = "darkred",
-                                 "CM" = "darkgreen",
-                                 "CI" = "darkorange"))+ 
-  guides(fill=guide_legend(title="Species"))+ labs(color = "Period")
+### Regraphing Hemi and Carcinus without those who didn't eat (prediction of molt)
 
-ggplot(EatDF,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = Species.x)) + geom_point() + geom_smooth(method = "loess")+ 
-  ggtitle("Proportion consumed over trial temperature") + scale_y_log10()+
-  xlab("Trial Temperature") + 
-  ylab("Amount Eaten (Proportionally, log10)")+
-  scale_color_manual(values = c("HS" = "darkred",
-                                 "CM" = "darkgreen",
-                                 "CI" = "darkorange"))+ 
-  guides(fill=guide_legend(title="Species"))+
-  coord_cartesian(ylim = c(.001, .15))+ labs(color = "Period")
+```{R, echo=FALSE,results='hide',fig.keep='all'}
+summary_df <- EatDF %>%
+  group_by(Species.x, Trial.x, Period, still_eating) %>%
+  summarise(
+    mean = mean(proportion.eaten),
+    se = sd(proportion.eaten) / sqrt(n())
+  )
+summary_df <- subset(summary_df, summary_df$still_eating == "NO")
 
-ggplot(EatDF,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = Species.x)) + geom_point() + geom_smooth(method = "loess")+ 
-  ggtitle("Proportion consumed over trial temperature by Period") + scale_y_log10()+
-  facet_wrap(~Period)+
-  xlab("Trial Temperature") + 
-  ylab("Amount Eaten (Proportionally, log10)")+
+ggplot(summary_df, aes(x = as.numeric(Trial.x), y = mean, color = Species.x)) + geom_point(position = position_dodge(width = 0.3))+
   scale_color_manual(values = c("HS" = "darkred",
                                  "CM" = "darkgreen",
-                                 "CI" = "darkorange"))+ 
-  guides(fill=guide_legend(title="Species"))+ labs(color = "Period")
-
-ggplot(EatDF,aes(x = as.numeric(Trial.x), y = proportion.eaten, color = Species.x)) + geom_point() + geom_smooth(method = "loess")+ 
-  ggtitle("Proportion consumed over trial temperature by Period") + scale_y_log10()+
-  facet_wrap(~Period)+
-  xlab("Trial Temperature") + 
-  ylab("Amount Eaten (Proportionally, log10)")+
-  scale_color_manual(values = c("HS" = "darkred",
-                                 "CM" = "darkgreen",
-                                 "CI" = "darkorange"))+ 
-  guides(fill=guide_legend(title="Species"))+
-  coord_cartesian(ylim = c(.001, .15))+ labs(color = "Period")
+                                 "CI" = "darkorange"))+
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
+                width = 0.1, size = 0.8, position = position_dodge(width = 0.3)) +
+  geom_smooth(method = "loess", se = FALSE)+ scale_y_log10()+
+  ylab("Logged Mean of Proportion Eaten")+
+  xlab("Trial Temperature") + labs(color = "Species")+
+  ggtitle("Proportion Consumed over Trial Temperature")
 ```
+
+### Graphing the Husbandry Logs
+
 ```{R, echo = FALSE, warning = FALSE}
-ggplot(husbandry, aes(x = Date, y = Temperature, color = Trial)) + geom_point() + facet_wrap(~System)
+savedhus <- husbandry
+husbandry <- savedhus
+husbandry$Date <- as.Date(husbandry$Date, format="%m/%d/%Y")
+ggplot(husbandry, aes(x = Date, y = Temperature, color = Trial)) + geom_point() + facet_grid(Period~System)+
+  scale_y_continuous(breaks = c(16, 18, 20, 22, 24, 26, 28))+ggtitle("Temperature Records for Each System and Trial") + 
+  scale_color_manual(values = c("18"= "yellow",
+                               "20" = "#fecc5c",
+                               "22" = "#fd8d3c",
+                               "24" ="#f03b20",
+                               "26" = "#bd0026")) +theme_dark()
+```
+
+### Graphing Crab mass before and after the experiment
+
+```{R, echo=FALSE,results='hide',fig.keep='all'}
+ID_list <- list()
+trial_list <- list()
+period_list <- list()
+species_list <- list()
+weight_before <- list()
+weight_after <- list()
+
+for(i in 1:nrow(master)){
+  if(master$ID[i] %in% deathMeta$ID){
+    
+  }
+  else{
+    ID_list <- append(ID_list, master$ID[i])
+    trial_list <- append(trial_list, master$Trial[i])
+    period_list <- append(period_list, master$Period[i])
+    species_list <- append(species_list, master$Species[i])
+    weight_before <- append(weight_before, master$WW[i])
+    weight_after <- append(weight_after, checkout$WW[which(checkout$ID == master$ID[i])])
+  }
+}
+
+weight_df <- data.frame(
+  ID = unlist(I(ID_list)),
+  Trial = unlist(I(trial_list)),
+  Period = unlist(I(period_list)),
+  species = unlist(I(species_list)),
+  weight_before = unlist(I(weight_before)),
+  weight_after = unlist(I(weight_after))
+)
+
+weight_df$dif <- as.numeric(weight_df$weight_after) - as.numeric(weight_df$weight_before)
+
+#CM139
+#CM141
+
+weight_df <- subset(weight_df, weight_df$ID != "CM139")
+weight_df <- subset(weight_df, weight_df$ID != "CM141")
+
+ggplot(weight_df, aes(x = as.factor(species), y = as.numeric(dif), fill = species)) + geom_boxplot(na.rm = TRUE)+
+  scale_fill_manual(values = c("Carcinus" = "darkgreen",
+                               "Hemigrapsus" = "darkred",
+                               "Irroratus" = "darkorange"))+
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed", size = 0.5) + ggtitle("Weight change of each species over the whole experiment")+
+  facet_wrap(~Trial)+xlab("Species") + ylab("Weight Change (g)")
 ```
