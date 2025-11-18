@@ -112,7 +112,7 @@ server <- function(input, output) {
     threshold <- 1.0
   }
     smooth <- ksmooth(data$time, data$hb, "normal", input$bandwidth)
-    peaks <- findpeaks(smooth$y, nups = 3, minpeakheight = threshold, minpeakdistance = 10)
+    peaks <- findpeaks(smooth$y, nups = 3, minpeakheight = threshold, minpeakdistance = 5) #changed from 10 to 5
     peak_times <- data$time[peaks[,2]]
     peak_times=as.data.frame(peak_times)
     peak_times=arrange(peak_times,desc(peak_times))
@@ -220,10 +220,10 @@ server <- function(input, output) {
     if (!is.null(input$plot2_brush)) {
       threshold <- input$plot2_brush$ymax
     } else {
-      threshold <- 1.4
+      threshold <- 1.4#CHANGED FROM 1.4 TO 1
     }
     smooth <- ksmooth(data$time, data$hb, "normal", input$bandwidth)
-    peaks <- findpeaks(smooth$y, nups = 3, minpeakheight = threshold, minpeakdistance = 10)
+    peaks <- findpeaks(smooth$y, nups = 3, minpeakheight = threshold, minpeakdistance = 5) #changed from 10 to 5
     peak_times <- data$time[peaks[, 2]]
     
     plot(data$time, data$hb, type = "l", xlab = "Time (seconds)", ylab = "Amplitude")
@@ -242,7 +242,7 @@ server <- function(input, output) {
       threshold <- 0.5
     }
     smooth <- ksmooth(data$time, data$hb, "normal", input$bandwidth)
-    peaks <- findpeaks(smooth$y, nups = 3, minpeakheight = threshold, minpeakdistance = 10)
+    peaks <- findpeaks(smooth$y, nups = 3, minpeakheight = threshold, minpeakdistance = 5) #changed from 10 to 5
     peak_times <- data$time[peaks[,2]]
     peak_times=as.data.frame(peak_times)
     peak_times=arrange(peak_times,desc(peak_times))
