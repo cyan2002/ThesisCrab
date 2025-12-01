@@ -565,6 +565,27 @@ ggplot(summary_df, aes(x = as.numeric(Trial.x), y = mean, color = Species.x)) + 
   ylab("Logged Mean of Proportion Eaten")+
   xlab("Trial Temperature") + labs(color = "Species")+
   ggtitle("Proportion Consumed over Trial Temperature")
+
+holddf <- subset(finalEat, finalEat$Species.x == "CI")
+mod <- glm(holddf$proportion.eaten ~ as.factor(holddf$Trial.x))
+summary(mod)
+emm <- emmeans(mod, ~ as.factor(Trial.x))
+pairs_data <- pairs(emm)
+pairs_data
+
+holddf <- subset(finalEat, finalEat$Species.x == "CM")
+mod <- glm(holddf$proportion.eaten ~ as.factor(holddf$Trial.x))
+summary(mod)
+emm <- emmeans(mod, ~ as.factor(Trial.x))
+pairs_data <- pairs(emm)
+pairs_data
+
+holddf <- subset(finalEat, finalEat$Species.x == "HS")
+mod <- glm(holddf$proportion.eaten ~ as.factor(holddf$Trial.x))
+summary(mod)
+emm <- emmeans(mod, ~ as.factor(Trial.x))
+pairs_data <- pairs(emm)
+pairs_data
 ```
 
 ### Regraphing Hemi and Carcinus without those who didn't eat (prediction of molt)
