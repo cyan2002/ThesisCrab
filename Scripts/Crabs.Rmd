@@ -67,9 +67,6 @@ for(i in 1:nrow(crabdata)){
   }
 }
 
-
-
-
 #Creating number IDs for each crab based of their IDs so it's easier to loop through with future code. Also I'm adding a total eaten by proportion column, so we have a standard metric to compare by.
 for(i in 1:36){
   master$num[[i]] <- substr(master$ID[[i]], 3,5)
@@ -269,6 +266,60 @@ ggplot(death, aes(x = as.factor(Trial), y = Count, fill = Life)) + facet_wrap(~S
                                 "DEAD"="darkred"))+
   xlab("Trial Temperature")+ggtitle("The Amount of Crabs that Died in the Experiment")
 
+#make a percentage alive column.
+library(dplyr)
+
+result <- death %>%
+  group_by(Species, Trial) %>%
+  summarise(
+    alive = sum(Count[Life == "ALIVE"]),
+    total = sum(Count),
+    prop_alive = alive / total,
+    .groups = "drop"
+  )
+
+library(ggplot2)
+
+ggplot(result, aes(x = Species, y = prop_alive, fill = factor(Trial))) +
+  geom_col(position = "dodge") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(
+    y = "Proportion Alive",
+    fill = "Trial"
+  ) +
+  theme_minimal()
+
+result$dead <- result$total - result$alive
+
+m.null <- glm(cbind(dead, total - dead) ~ 1, family = binomial, data = result)
+m.species <- glm(cbind(dead, total - dead) ~ Species, family = binomial, data = result)
+m.trial <- glm(cbind(dead, total - dead) ~ as.factor(Trial), family = binomial, data = result)
+m.add <- glm(cbind(dead, total - dead) ~ Species + as.factor(Trial), family = binomial, data = result)
+m.inter <- glm(cbind(dead, total - dead) ~ Species * Trial,
+    family = binomial,
+    data = result)
+
+models <- list()
+models[[1]] <- glm(cbind(dead, total - dead) ~ 1, family = binomial, data = result)
+models[[2]] <- glm(cbind(dead, total - dead) ~ Species, family = binomial, data = result)
+models[[3]] <- glm(cbind(dead, total - dead) ~ as.factor(Trial), family = binomial, data = result)
+models[[4]] <- glm(cbind(dead, total - dead) ~ Species + as.factor(Trial), family = binomial, data = result)
+models[[5]] <- glm(cbind(dead, total - dead) ~ Species * Trial,
+    family = binomial,
+    data = result)
+
+names(models) <- c("null","species","trial","add","inter")
+
+library(AICcmodavg)
+aictab(models)
+
+plot(m.inter)
+plot(m.species)
+
+#heyyyy, interaction model looks pretty normal for residuals
+histogram(residuals(m.inter))
+#meanwhile, species model doesn't look as normal
+histogram(residuals(m.species))
 ```
 
 *Cancer irroratus* have the highest death count among all 3 species with *Hemigrapsus* having none and *Carcinus meanus* only having two death counts. Across trials with *Cancer irroratus*, the higher the trial temperature the more deaths there are as well.
