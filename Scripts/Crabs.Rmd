@@ -320,6 +320,26 @@ plot(m.species)
 histogram(residuals(m.inter))
 #meanwhile, species model doesn't look as normal
 histogram(residuals(m.species))
+
+summary(m.inter)
+
+master$dead <- ifelse(master$ID %in% deathMeta$ID, 0, 1)	
+
+add_rows <- data.frame(ID = "extra1", System = NA, CL = NA, WW = NA, Trial = "26", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 0)
+master <- rbind(master, add_rows)
+add_rows <- data.frame(ID = "extra2", System = NA, CL = NA, WW = NA, Trial = "26", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 0)
+master <- rbind(master, add_rows)
+add_rows <- data.frame(ID = "extra3", System = NA, CL = NA, WW = NA, Trial = "24", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 0)
+master <- rbind(master, add_rows)
+
+summary(glm(dead ~ Species + Trial, family = binomial(link = "logit"), data = master))
+
+#model fails due to not enough data points
+
+subdata <- subset(master, master$Species == "Irroratus")
+
+mod <- glm(dead ~ Trial, family = binomial, data = subdata)
+summary(mod)
 ```
 
 *Cancer irroratus* have the highest death count among all 3 species with *Hemigrapsus* having none and *Carcinus meanus* only having two death counts. Across trials with *Cancer irroratus*, the higher the trial temperature the more deaths there are as well.
@@ -440,48 +460,7 @@ It seems like Cancer crabs have a left leaning normality curve. Green crabs have
 
 The only differences between size of trial and species is Hemigrapsus for Trial 26 between period 1 and 2 by about 3 grams of differnece. The other difference is for Trial 24 and 26 in period 2.
 
-## Relationships
-
-#### Food Effects
-
-```{R, echo=FALSE,results='hide',fig.keep='all'}
-#Looking at how much food gains or loses (not by being eaten, but by being in saltwater)
-holddf <- subset(all, grepl("DE", all$Notes.x, fixed = TRUE))
-ggplot(holddf, aes(x = Trial.x, y = proportion.eaten, fill = Species.x)) + geom_boxplot() + ggtitle("How much weight food gains or loses in Saltwater")+
-  scale_fill_manual(values = c("CI" = "darkorange",
-                                "CM"="darkgreen",
-                                "HS"="darkred"))
-
-# Food Type Effects on Proportion Eaten
-ggplot(all, aes(x = all$Food, y = proportion.eaten, fill = Species.x)) + geom_boxplot()+ ggtitle("Food Type Effects on Proportion Eaten")+
-  scale_fill_manual(values = c("CI" = "darkorange",
-                                "CM"="darkgreen",
-                                "HS"="darkred")) + xlab("Food Type") + ylab("Amount Eaten (proportionally)")
-
-# Statistical Test to see if Squid is preferred over Clam for all 3 species
-print("Hemigrapsus")
-holddf <- subset(all, all$Species.x == "HS")
-mod <- glm(holddf$proportion.eaten ~ holddf$Food)
-emm <- emmeans(mod, ~ Food)
-pairs_data <- pairs(emm)
-pairs_data
-
-print("Carcinus")
-holddf <- subset(all, all$Species.x == "CM")
-mod <- glm(holddf$proportion.eaten ~ holddf$Food)
-emm <- emmeans(mod, ~ Food)
-pairs_data <- pairs(emm)
-pairs_data
-
-print("Cancer")
-holddf <- subset(all, all$Species.x == "CI")
-mod <- glm(holddf$proportion.eaten ~ holddf$Food)
-emm <- emmeans(mod, ~ Food)
-pairs_data <- pairs(emm)
-pairs_data
-```
-
-After running a t-test on these, it seems like green crabs and Hemigrapsus have a slight preference for squid rather than clam. Meanwhile Cancer crabs have no preference between the food types.
+#There is a food effect for Squid and Clam for Carcinus and Hemigrapsus; however, maybe call it species difference 
 
 ### Size effect on Consumption
 
