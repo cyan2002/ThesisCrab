@@ -423,21 +423,13 @@ aictab(models)
 hist(all$prop_log)
 best.mod <- glm(prop_log ~ Species.x * as.factor(Trial.x) * WW, data = all)
 plot(best.mod)
+plot(best.mod$residuals)
 
 library(nlme)
 
 library(GGally)
 
 ggpairs(all,columns = c("proportion.eaten", "WW", "Trial.x", "Species.x"))
-
-#errors are correlated -> GLS
-mod <- gls(proportion.eaten ~ Species.x * factor(Trial.x) * WW,
-           weights = varPower(form = ~fitted(.)),
-           data = all,
-           na.action = na.omit)
-summary(mod)
-plot(mod)
-
 
 
 models <- list()
@@ -525,4 +517,5 @@ Things I found:
 
 Questions:
 -If I've added proportion eaten as part of the model (which is based on weight), do I need to add weight as an explanatory variable? When using ggpairs, there is correlation between Wet weight and proportion eaten (expected)
+-Do we use GLMs because sometimes there isn't a normal distribution?
 
