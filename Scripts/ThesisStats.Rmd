@@ -163,6 +163,9 @@ dredge(all.mod, rank = "AIC")
 
 best.mod <- glm(dead ~ Trial + Species, family = binomial, data = master, na.action = "na.fail")
 
+summary(best.mod)
+#standard error same and giant -> separation
+
 res <- simulateResiduals(best.mod)
 plot(res)
 testDispersion(res)
@@ -170,9 +173,11 @@ testDispersion(res)
 emm <- emmeans(best.mod, ~ Trial | Species)
 pairs(emm)
 
+ggplot(aes(a))
+
 #just looking at cancer irroratus since HS and CM have very little deaths
 #dropping trials and species that have 0 deaths gives us something to work with
-holddf <- subset(master, master$Species == "Irroratus" & master$Trial != 18)
+holddf <- subset(master, master$Species == "Irroratus")
 
 mod <-  glm(dead ~ Trial, family = binomial, data = holddf, na.action = "na.fail")
 summary(mod)
@@ -185,10 +190,20 @@ testDispersion(res)
 emm <- emmeans(mod, ~ Trial)
 pairs(emm)
 
+str(master)
 
+summary(mod)
+#model 
+#trial/temperature as a continous factor
+#-if you have a lot of temperature
+#thinking of temperature on a contimum
+#don't use as.numeric to change back
+#just don't use as.factor to begin with
+#ALSO - RECLASSIFY THINGS THAT ARE CATEGORICAL AS FACTORS
+#read.csv argument, strings as factors = true (automatically does it for you)
 ```
 
-RUN THIS FOR 1
+RUN THIS FOR 1: sensoring the data
 DROPPING ALL THOSE WHO DIED AND WERE REPLACED
 ```{R}
 all$proportion.eaten <- all$amount.eaten / all$WW
@@ -198,7 +213,7 @@ all <- all[ !is.na(all$ID) & !(all$ID %in% deathMeta$ID), ]
 all <- subset(all, !is.na(all$proportion.eaten))
 ```
 
-RUN THIS FOR 2
+RUN THIS FOR 2: replacement data is in
 KEEPING ALL THOSE WHO DIED (EVERYTHING BEFORE DEATH, AND THE data collected by the REPLACED WITH NEW CRABS)
 ```{R}
 all <- all %>%
@@ -274,7 +289,7 @@ all <- subset(all, !is.na(all$proportion.eaten))
 ```
 
 
-PUSHING THOSE WHO Didn't eat TO 0 (AS OPPOSED TO JUST LEAVING IT) and making values that are negative, 0 or positive
+MAKE THOSE WHO Didn't eat TO 0 (AS OPPOSED TO JUST LEAVING IT) and making values that are negative, 0 or positive
 ```{R}
 #pushing all those who did not eat to 0, rather than keeping them at value
 #set to 0.01 rather than 0 for the stats transformation
@@ -529,7 +544,7 @@ hist(all$proportion.eaten)
 #to transform need to set all those who did eat to 0
 all$proportion.eaten <- ifelse(grepl("DE", all$Notes.x, fixed = TRUE), 0.01, all$proportion.eaten)
 all$proportion.eaten <- ifelse(all$proportion.eaten < 0, 0.01, all$proportion.eaten)
-all$prop_log <- log(all$proportion.eaten)
+all$prop_log <- log(all$proportion.eaten / (1 - all$proportion.eaten))
 hist(all$prop_log)
 
 #USING PROPOTION EATEN WITH GAMMA FAMILY-----------------------------------------------------
@@ -566,7 +581,6 @@ glm.diag.plots(best.mod.gamma.identity, mod.diag)
 all.mod <- glm(proportion.eaten ~ Period*Species.x*Trial.x, family = Gamma(link = "inverse"), data = all, na.action = "na.fail")
 dredge(all.mod)
 best.mod <- glm(proportion.eaten ~ Period + Species.x + Trial.x + Period*Trial.x + Species.x*Trial.x, family = Gamma(link = "inverse"), data = all)
-plot(best.mod)
 hist(best.mod$residuals)
 summary(best.mod)
 mod.diag <- glm.diag(best.mod)
@@ -574,19 +588,213 @@ glm.diag.plots(best.mod, mod.diag)
 sim <- simulateResiduals(best.mod)
 plot(sim)
 
-#subsetting by species-------------------------------------------------------
+#subsetting by species Gamma-------------------------------------------------------
+library(lme4)
 
 holddf <- subset(all, all$Species.x == "CI")
 all.mod <- glm(proportion.eaten ~ Period*Trial.x, family = Gamma(link = "inverse"), data = holddf, na.action = "na.fail")
 dredge(all.mod)
-best.mod <- glm(proportion.eaten ~ Trial.x, family = Gamma(link = "inverse"), data = holddf)
-plot(best.mod)
-hist(best.mod$residuals)
+best.mod <- glmer(proportion.eaten ~ Trial.x + (1|Period), family = Gamma(link = "inverse"), data = holddf)
+hist(residuals(best.mod, type = "pearson"))
 summary(best.mod)
-mod.diag <- glm.diag(best.mod)
-glm.diag.plots(best.mod, mod.diag)
 sim <- simulateResiduals(best.mod)
 plot(sim)
+
+holddf <- subset(all, all$Species.x == "CM")
+all.mod <- glm(proportion.eaten ~ Period*Trial.x, family = Gamma(link = "inverse"), data = holddf, na.action = "na.fail")
+dredge(all.mod)
+best.mod <- glm(proportion.eaten ~ 1, family = Gamma(link = "inverse"), data = holddf)
+hist(best.mod$residuals)
+summary(best.mod)
+sim <- simulateResiduals(best.mod)
+plot(sim)
+
+holddf <- subset(all, all$Species.x == "HS")
+all.mod <- glm(proportion.eaten ~ Period*Trial.x, family = Gamma(link = "inverse"), data = holddf, na.action = "na.fail")
+dredge(all.mod)
+best.mod <- glm(proportion.eaten ~ Period*Trial.x, family = Gamma(link = "inverse"), data = holddf)
+hist(best.mod$residuals)
+summary(best.mod)
+sim <- simulateResiduals(best.mod)
+plot(sim)
+
+#subsetting by species using proportion eaten----------------------------------------
+#wait, suprisingly really good...?
+holddf <- subset(all, all$Species.x == "CI")
+all.mod <- glm(proportion.eaten ~ Period*Trial.x, data = holddf, na.action = "na.fail")
+dredge(all.mod)
+best.mod <- glm(proportion.eaten ~ Period + Trial.x, data = holddf, na.action = "na.fail")
+hist(best.mod$residuals)
+par(mfrow=c(2,2)) # Change the panel layout to 2 x 2
+plot(best.mod)
+summary(best.mod)
+
+holddf <- subset(all, all$Species.x == "CM")
+all.mod <- glm(proportion.eaten ~ Period*Trial.x, data = holddf, na.action = "na.fail")
+dredge(all.mod)
+best.mod <- glm(proportion.eaten ~ Period*Trial.x, data = holddf, na.action = "na.fail")
+hist(best.mod$residuals)
+par(mfrow=c(2,2)) # Change the panel layout to 2 x 2
+plot(best.mod)
+summary(best.mod)
+
+#possible removal of outliers
+holddf <- subset(all, all$Species.x == "HS")
+all.mod <- glm(proportion.eaten ~ Period*Trial.x, data = holddf, na.action = "na.fail")
+dredge(all.mod)
+best.mod <- glm(proportion.eaten ~ Period*Trial.x, data = holddf, na.action = "na.fail")
+hist(best.mod$residuals)
+par(mfrow=c(2,2)) # Change the panel layout to 2 x 2
+plot(best.mod)
+summary(best.mod)
+
+#adding all species into one model fails
+all.mod <- glm(proportion.eaten ~ Period*Trial.x*Species.x, data = all, na.action = "na.fail")
+dredge(all.mod)
+best.mod <- glm(proportion.eaten ~ Period*Trial.x*Species.x, data = all)
+hist(best.mod$residuals)
+par(mfrow=c(2,2)) # Change the panel layout to 2 x 2
+plot(best.mod)
+
+#-------------------------------------------------------------
+#proportion logged subsetted by species
+holddf <- subset(all, all$Species.x == "CI")
+all.mod <- glm(prop_log ~ Period*Trial.x, data = holddf, na.action = "na.fail")
+dredge(all.mod)
+best.mod <- glm(proportion.eaten ~ Trial.x, data = holddf)
+hist(best.mod$residuals)
+par(mfrow=c(2,2)) # Change the panel layout to 2 x 2
+plot(best.mod)
+
+emm <- emmeans(best.mod, ~ Trial.x)
+emm_cld <- multcomp::cld(emm, Letters = letters)
+emm_cld_df <- as.data.frame(emm_cld)
+emm_cld_df$emmean <- exp(emm_cld_df$emmean) - 1
+emm_cld_df$lower.CL <- exp(emm_cld_df$lower.CL) - 1
+emm_cld_df$upper.CL <- exp(emm_cld_df$upper.CL) - 1
+
+#unsure how to graph if null model is the best...?
+ggplot(emm_cld_df, aes(x = Trial.x, y = emmean, fill = Trial.x)) +
+  geom_col(position = position_dodge(0.9)) +
+  geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL),
+                width = 0.2, position = position_dodge(0.9)) +
+  geom_text(aes(label = .group),
+            position = position_dodge(0.9),
+            vjust = -0.5) +
+  labs(y = "Propotion Consumed", x = "Trial") +
+  theme_minimal()+
+  scale_fill_manual(values = c("18" = "darkblue",
+                                "20"="darkgreen",
+                                "22"="darkorange",
+                               "24" = "red3",
+                               "26" = "salmon"))+
+  ggtitle("Proportion consumed across Trial for Cancer")
+
+holddf <- subset(all, all$Species.x == "CM")
+all.mod <- glm(prop_log ~ Period*Trial.x, data = holddf, na.action = "na.fail")
+dredge(all.mod)
+best.mod <- glm(proportion.eaten ~ Trial.x, data = holddf)
+hist(best.mod$residuals)
+par(mfrow=c(2,2)) # Change the panel layout to 2 x 2
+plot(best.mod)
+
+emm <- emmeans(best.mod, ~ Trial.x)
+emm_cld <- multcomp::cld(emm, Letters = letters)
+emm_cld_df <- as.data.frame(emm_cld)
+emm_cld_df$emmean <- exp(emm_cld_df$emmean) - 1
+emm_cld_df$lower.CL <- exp(emm_cld_df$lower.CL) - 1
+emm_cld_df$upper.CL <- exp(emm_cld_df$upper.CL) - 1
+
+#unsure how to graph if null model is the best...?
+ggplot(emm_cld_df, aes(x = Trial.x, y = emmean, fill = Trial.x)) +
+  geom_col(position = position_dodge(0.9)) +
+  geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL),
+                width = 0.2, position = position_dodge(0.9)) +
+  geom_text(aes(label = .group),
+            position = position_dodge(0.9),
+            vjust = -0.5) +
+  labs(y = "Propotion Consumed", x = "Trial") +
+  theme_minimal()+
+  scale_fill_manual(values = c("18" = "darkblue",
+                                "20"="darkgreen",
+                                "22"="darkorange",
+                               "24" = "red3",
+                               "26" = "salmon"))+
+  ggtitle("Proportion consumed across Trial for Carcinus")
+
+#same outliers from HS before...
+holddf <- subset(all, all$Species.x == "HS")
+all.mod <- glm(prop_log ~ Period*Trial.x, data = holddf, na.action = "na.fail")
+dredge(all.mod)
+best.mod <- glm(proportion.eaten ~ Trial.x, data = holddf)
+hist(best.mod$residuals)
+par(mfrow=c(2,2)) # Change the panel layout to 2 x 2
+plot(best.mod)
+
+emm <- emmeans(best.mod, ~ Trial.x)
+emm_cld <- multcomp::cld(emm, Letters = letters)
+emm_cld_df <- as.data.frame(emm_cld)
+emm_cld_df$emmean <- exp(emm_cld_df$emmean) - 1
+emm_cld_df$lower.CL <- exp(emm_cld_df$lower.CL) - 1
+emm_cld_df$upper.CL <- exp(emm_cld_df$upper.CL) - 1
+
+ggplot(emm_cld_df, aes(x = Trial.x, y = emmean, fill = Trial.x)) +
+  geom_col(position = position_dodge(0.9)) +
+  geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL),
+                width = 0.2, position = position_dodge(0.9)) +
+  geom_text(aes(label = .group),
+            position = position_dodge(0.9),
+            vjust = -1.5) +
+  labs(y = "Propotion Consumed", x = "Trial") +
+  theme_minimal()+
+  scale_fill_manual(values = c("18" = "darkblue",
+                                "20"="darkgreen",
+                                "22"="darkorange",
+                               "24" = "red3",
+                               "26" = "salmon"))+
+  ggtitle("Proportion consumed across Trial for Hemigrapsus")
+
+#proportion logged fails with all species
+mod <- glmer(prop_log ~ Period + Trial.x + Species.x + Period*Trial.x*Species.x + (1 | Species.x), data=all, na.action = "na.fail")
+dredge(mod)
+best.mod <- glm(prop_log ~ Species.x*Trial.x, data = all)
+hist(best.mod$residuals)
+plot(best.mod)
+summary(best.mod)
+#--------------------------
+
+emm <- emmeans(best.mod, ~ Species.x * Trial.x)
+
+emm_cld <- multcomp::cld(emm, Letters = letters)
+emm_cld_df <- as.data.frame(emm_cld)
+
+emm_cld_df$emmean <- exp(emm_cld_df$emmean)
+#emm_cld_df$SE <- exp(emm_cld_df$SE)
+emm_cld_df$lower.CL <- exp(emm_cld_df$lower.CL)
+emm_cld_df$upper.CL <- exp(emm_cld_df$upper.CL)
+
+ggplot(emm_cld_df, aes(x = Species.x, y = emmean, fill = Trial.x)) +
+  geom_col(position = position_dodge(0.9)) +
+  geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL),
+                width = 0.2, position = position_dodge(0.9)) +
+  geom_text(aes(label = .group),
+            position = position_dodge(0.9),
+            vjust = -6) +
+  labs(y = "Propotion Consumed", x = "Species") +
+  theme_minimal()+
+  scale_fill_manual(values = c("18" = "darkblue",
+                                "20"="darkgreen",
+                                "22"="darkorange",
+                               "24" = "red3",
+                               "26" = "salmon"))+
+  ggtitle("Proportion consumed across Species and Trial")
+
+
+  
+
+#END - REST ARE QUESTIONS FOR BRIAN
+#proportion logged diagnostic plots look great across all species; however, different models (including different dependent varaibles were used). Additionally, when putting all species into a single model, it fails 
+#oddly enough, using proportion consumed (not logged) across typical GLMs (no gamma) also worked well and diagnostic plots seems good
 
 #BETA REGRESSION--------------------------------------------------------------------
 models <- list()
@@ -802,4 +1010,18 @@ Questions:
 -If I've added proportion eaten as part of the model (which is based on weight), do I need to add weight as an explanatory variable? When using ggpairs, there is correlation between Wet weight and proportion eaten (expected). AIC outputs it's a better model?
 -Do we use GLMs because sometimes there isn't a normal distribution?
 -Acclimation: should we trust the AIC return and models? AIC returns no interaction with WeekNum (doesn't change across Trial and Period for ALL species). Model diagnostic plots look good. Only concern - looks different when plotting out means and SE
+-What is the difference between DHARMa qq plots vs the regulat qqplots?
 
+
+Notes
+-Trial is replaced with temperature in Crab Consumption data
+-Explore WW, Trial(temperature), Species matters for consumption and death
+-Temperature as a continous predictor, temperature by species (does temperature predict death ignoring species)
+-WW predictive towards death
+-Bias reduced logistic regression (helps against separation problem)
+-Don't jump straight into models - determine what needs to be continous, factor etc
+-show/explore the initial data, X number of individuals, this number of x crabs from x species etc
+-Word Doc not an HTML
+-cleanest way to handle data - sensor the data, remove those that are dead and replaced
+-just compare and model the two most plausible ones (the cleanest versions or extreme versions: sensor data, data died stays in and replacement data stays in), model with the most inclusive and conservative
+-run two different models, no need to over complicate
