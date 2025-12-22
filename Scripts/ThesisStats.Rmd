@@ -3,6 +3,8 @@ title: "ThesisStats"
 author: "ChanceYan"
 date: "2025-12-15"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{R, include = FALSE, warning = FALSE}
@@ -13,6 +15,11 @@ library(dplyr)
 library(AICcmodavg)
 library(emmeans)
 library(multcompView)
+library(MuMIn)
+library(nlme)
+library(GGally)
+library(DHARMa)
+library(betareg)
 setwd("/Users/chanceyan/Documents/R/ThesisCrab/Data")
 crabdata <- read.csv("EditFeed.csv", h=T)
 death <- read.csv("DeathCount.csv", h=T)
@@ -142,20 +149,43 @@ master <- rbind(master, add_rows)
 add_rows <- data.frame(ID = "extra2", System = NA, CL = NA, WW = NA, Trial = "26", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 0)
 master <- rbind(master, add_rows)
 add_rows <- data.frame(ID = "extra3", System = NA, CL = NA, WW = NA, Trial = "24", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 0)
+add_rows <- data.frame(ID = "extra3", System = NA, CL = NA, WW = NA, Trial = "24", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 1)
+add_rows <- data.frame(ID = "extra3", System = NA, CL = NA, WW = NA, Trial = "22", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 1)
+add_rows <- data.frame(ID = "extra3", System = NA, CL = NA, WW = NA, Trial = "22", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 1)
+add_rows <- data.frame(ID = "extra3", System = NA, CL = NA, WW = NA, Trial = "20", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 1)
+add_rows <- data.frame(ID = "extra3", System = NA, CL = NA, WW = NA, Trial = "20", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 1)
+add_rows <- data.frame(ID = "extra3", System = NA, CL = NA, WW = NA, Trial = "18", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 1)
+add_rows <- data.frame(ID = "extra3", System = NA, CL = NA, WW = NA, Trial = "18", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 1)
 master <- rbind(master, add_rows)
 
-#model summaries, does not look good
-summary(glm(dead ~ 1, family = binomial, data = master))
-summary(glm(dead ~ Trial, family = binomial, data = master))
-summary(glm(dead ~ Species, family = binomial, data = master))
-summary(glm(dead ~ Trial + Species, family = binomial, data = master))
-summary(glm(dead ~ Trial*Species, family = binomial, data = master))#(link="logit")
+all.mod <- glm(dead ~ Trial*Species, family = binomial, data = master, na.action = "na.fail")
+dredge(all.mod, rank = "AIC")
+
+best.mod <- glm(dead ~ Trial + Species, family = binomial, data = master, na.action = "na.fail")
+
+res <- simulateResiduals(best.mod)
+plot(res)
+testDispersion(res)
+
+emm <- emmeans(best.mod, ~ Trial | Species)
+pairs(emm)
 
 #just looking at cancer irroratus since HS and CM have very little deaths
 #dropping trials and species that have 0 deaths gives us something to work with
 holddf <- subset(master, master$Species == "Irroratus" & master$Trial != 18)
-summary(glm(dead ~ 1, family = binomial, data = holddf))
-summary(glm(dead ~ Trial, family = binomial, data = holddf))#(link="logit")
+
+mod <-  glm(dead ~ Trial, family = binomial, data = holddf, na.action = "na.fail")
+summary(mod)
+plot(mod)
+
+res <- simulateResiduals(mod)
+plot(res)
+testDispersion(res)
+
+emm <- emmeans(mod, ~ Trial)
+pairs(emm)
+
+
 ```
 
 RUN THIS FOR 1
@@ -164,6 +194,8 @@ DROPPING ALL THOSE WHO DIED AND WERE REPLACED
 all$proportion.eaten <- all$amount.eaten / all$WW
 
 all <- all[ !is.na(all$ID) & !(all$ID %in% deathMeta$ID), ]
+
+all <- subset(all, !is.na(all$proportion.eaten))
 ```
 
 RUN THIS FOR 2
@@ -208,6 +240,8 @@ for(i in 1:nrow(all)){
     all$proportion.eaten[i] <- (all$amount.eaten[i] / all$WW[i])
   }
 }
+
+all <- subset(all, !is.na(all$proportion.eaten))
 ```
 
 KEEP FOR 3
@@ -224,6 +258,8 @@ all <- all %>%
   filter(!grepl("DI", Notes.x))
 
 all$proportion.eaten <- all$amount.eaten / all$WW
+
+all <- subset(all, !is.na(all$proportion.eaten))
 ```
 
 KEEP FOR 4
@@ -233,6 +269,8 @@ all <- all %>%
   filter(!grepl("RE", Notes.x))
 
 all$proportion.eaten <- all$amount.eaten / all$WW
+
+all <- subset(all, !is.na(all$proportion.eaten))
 ```
 
 
@@ -242,6 +280,10 @@ PUSHING THOSE WHO Didn't eat TO 0 (AS OPPOSED TO JUST LEAVING IT) and making val
 #set to 0.01 rather than 0 for the stats transformation
 all$proportion.eaten <- ifelse(grepl("DE", all$Notes.x, fixed = TRUE), 0.01, all$proportion.eaten)
 all$proportion.eaten <- ifelse(all$proportion.eaten < 0, 0.01, all$proportion.eaten)
+
+all$proportion.eaten <- ifelse(grepl("DE", all$Notes.x, fixed = TRUE), 0, all$proportion.eaten)
+all$proportion.eaten <- ifelse(all$proportion.eaten < 0, 0, all$proportion.eaten)
+all$amount.eaten <- ifelse(grepl("DE", all$Notes.x, fixed = TRUE), 0, all$amount.eaten)
 ```
 
 DEAD REMOVALS
@@ -304,21 +346,41 @@ ggplot(holddf, aes(x = as.numeric(WeekNum), y = mean, color = as.factor(Period))
   labs(color = "Period")+
   geom_errorbar(aes(ymin = mean - se, ymax = mean + se), position = position_dodge(width = 0.2))
 
+#plotting differences for CI - we only care about differences within species not across
 holddf <- subset(all, all$Species.x == "CI")
-mod <- glm(proportion.eaten ~ as.factor(Trial.x)*as.factor(WeekNum)*as.factor(Period), data = holddf)
-summary(mod)
 
+models <- list()
+models[[1]] <- glm(proportion.eaten ~ 1, data = holddf)
+models[[2]] <- glm(proportion.eaten ~ as.factor(Trial.x)*as.factor(WeekNum)*as.factor(Period), data = holddf)
+models[[3]] <- glm(proportion.eaten ~ as.factor(Trial.x)*as.factor(WeekNum), data = holddf)
+models[[4]] <- glm(proportion.eaten ~ as.factor(WeekNum)*as.factor(Period), data = holddf)
+models[[5]] <- glm(proportion.eaten ~ as.factor(Trial.x)*as.factor(Period), data = holddf)
+models[[6]] <- glm(proportion.eaten ~ as.factor(Trial.x), data = holddf)
+models[[7]] <- glm(proportion.eaten ~ as.factor(Period), data = holddf)
+models[[8]] <- glm(proportion.eaten ~ as.factor(WeekNum), data = holddf)
+models[[9]] <- glm(proportion.eaten ~ as.factor(Trial.x)+as.factor(WeekNum)+as.factor(Period), data = holddf)
+models[[10]] <- glm(proportion.eaten ~ as.factor(Trial.x)+as.factor(WeekNum), data = holddf)
+models[[11]] <- glm(proportion.eaten ~ as.factor(WeekNum)+as.factor(Period), data = holddf)
+models[[12]] <- glm(proportion.eaten ~ as.factor(Trial.x)+as.factor(Period), data = holddf)
+models[[13]] <- glm(proportion.eaten ~ as.factor(Trial.x)+as.factor(WeekNum)*as.factor(Period), data = holddf)
+models[[14]] <- glm(proportion.eaten ~ as.factor(Trial.x)*as.factor(WeekNum)+as.factor(Period), data = holddf)
+models[[15]] <- glm(proportion.eaten ~ as.factor(Trial.x)*as.factor(Period)+as.factor(WeekNum), data = holddf)
 
-emm <- emmeans(mod, ~ as.factor(Trial.x)*as.factor(WeekNum)*as.factor(Period))
+aictab(models)
+#because the model spits back factor as an additive function, we can assume weeknum has an effect
+#on proportion consumed, but does not vary across Period or Trial
 
+holddf <- subset(all, all$Species.x == "CI")
+mod <- glm(proportion.eaten ~ as.factor(Trial.x)*as.factor(Period)+as.factor(WeekNum), data = holddf)
+
+plot(mod)
+
+emm <- emmeans(mod, ~ as.factor(WeekNum))
+pairs(emm, simple = "WeekNum")
 cld_df <- as.data.frame(
   multcomp::cld(emm, Letters = letters, adjust = "tukey")
 )
-
-library(ggplot2)
-
 ggplot(cld_df, aes(x = WeekNum, y = emmean, fill = WeekNum)) +
-  facet_grid(as.factor(Trial.x)~Period)+
   geom_col(position = position_dodge(width = 0.9)) +
   geom_text(
     aes(label = .group),
@@ -337,22 +399,41 @@ ggplot(cld_df, aes(x = WeekNum, y = emmean, fill = WeekNum)) +
   scale_fill_manual(values = c("1" = "darkorange",
                                 "2"="darkgreen",
                                 "3"="darkred"))+ coord_cartesian(ylim = c(0, max(cld_df$emmean) * 1.15))
+#CI week 1 and 3 are the same and week 2 and 3 are the same; however, 
+#week 1 and 2 are not the same
+#--------------------------CM---------------------------
+holddf <- subset(all, all$Species.x == "CM")
 
-```
+models <- list()
+models[[1]] <- glm(proportion.eaten ~ 1, data = holddf)
+models[[2]] <- glm(proportion.eaten ~ as.factor(Trial.x)*as.factor(WeekNum)*as.factor(Period), data = holddf)
+models[[3]] <- glm(proportion.eaten ~ as.factor(Trial.x)*as.factor(WeekNum), data = holddf)
+models[[4]] <- glm(proportion.eaten ~ as.factor(WeekNum)*as.factor(Period), data = holddf)
+models[[5]] <- glm(proportion.eaten ~ as.factor(Trial.x)*as.factor(Period), data = holddf)
+models[[6]] <- glm(proportion.eaten ~ as.factor(Trial.x), data = holddf)
+models[[7]] <- glm(proportion.eaten ~ as.factor(Period), data = holddf)
+models[[8]] <- glm(proportion.eaten ~ as.factor(WeekNum), data = holddf)
+models[[9]] <- glm(proportion.eaten ~ as.factor(Trial.x)+as.factor(WeekNum)+as.factor(Period), data = holddf)
+models[[10]] <- glm(proportion.eaten ~ as.factor(Trial.x)+as.factor(WeekNum), data = holddf)
+models[[11]] <- glm(proportion.eaten ~ as.factor(WeekNum)+as.factor(Period), data = holddf)
+models[[12]] <- glm(proportion.eaten ~ as.factor(Trial.x)+as.factor(Period), data = holddf)
+models[[13]] <- glm(proportion.eaten ~ as.factor(Trial.x)+as.factor(WeekNum)*as.factor(Period), data = holddf)
+models[[14]] <- glm(proportion.eaten ~ as.factor(Trial.x)*as.factor(WeekNum)+as.factor(Period), data = holddf)
+models[[15]] <- glm(proportion.eaten ~ as.factor(Trial.x)*as.factor(Period)+as.factor(WeekNum), data = holddf)
 
-ANOVA differences between proportion eaten between species and trial
-```{R}
-all <- subset(all, all$WeekNum != 1)
+aictab(models)
 
-mod <- glm(proportion.eaten ~ Trial.x * Species.x, data = all)
+holddf <- subset(all, all$Species.x == "CM")
+mod <- glm(proportion.eaten ~ as.factor(Trial.x)*as.factor(Period)+as.factor(WeekNum), data = holddf)
 
-emm <- emmeans(mod, ~ Trial.x * Species.x)
+plot(mod)
 
+emm <- emmeans(mod, ~ as.factor(WeekNum))
+pairs(emm, simple = "WeekNum")
 cld_df <- as.data.frame(
   multcomp::cld(emm, Letters = letters, adjust = "tukey")
 )
-
-ggplot(cld_df, aes(x = Trial.x, y = emmean, fill = Species.x)) +
+ggplot(cld_df, aes(x = WeekNum, y = emmean, fill = WeekNum)) +
   geom_col(position = position_dodge(width = 0.9)) +
   geom_text(
     aes(label = .group),
@@ -368,9 +449,71 @@ ggplot(cld_df, aes(x = Trial.x, y = emmean, fill = Species.x)) +
   theme(
     legend.position = "top"
   )+
-  scale_fill_manual(values = c("CI" = "darkorange",
-                                "CM"="darkgreen",
-                                "HS"="darkred"))
+  scale_fill_manual(values = c("1" = "darkorange",
+                                "2"="darkgreen",
+                                "3"="darkred"))+ coord_cartesian(ylim = c(0, max(cld_df$emmean) * 1.15))
+#CM all the same
+#---------------------------------------HS------------------------------------
+holddf <- subset(all, all$Species.x == "HS")
+
+models <- list()
+models[[1]] <- glm(proportion.eaten ~ 1, data = holddf)
+models[[2]] <- glm(proportion.eaten ~ as.factor(Trial.x)*as.factor(WeekNum)*as.factor(Period), data = holddf)
+models[[3]] <- glm(proportion.eaten ~ as.factor(Trial.x)*as.factor(WeekNum), data = holddf)
+models[[4]] <- glm(proportion.eaten ~ as.factor(WeekNum)*as.factor(Period), data = holddf)
+models[[5]] <- glm(proportion.eaten ~ as.factor(Trial.x)*as.factor(Period), data = holddf)
+models[[6]] <- glm(proportion.eaten ~ as.factor(Trial.x), data = holddf)
+models[[7]] <- glm(proportion.eaten ~ as.factor(Period), data = holddf)
+models[[8]] <- glm(proportion.eaten ~ as.factor(WeekNum), data = holddf)
+models[[9]] <- glm(proportion.eaten ~ as.factor(Trial.x)+as.factor(WeekNum)+as.factor(Period), data = holddf)
+models[[10]] <- glm(proportion.eaten ~ as.factor(Trial.x)+as.factor(WeekNum), data = holddf)
+models[[11]] <- glm(proportion.eaten ~ as.factor(WeekNum)+as.factor(Period), data = holddf)
+models[[12]] <- glm(proportion.eaten ~ as.factor(Trial.x)+as.factor(Period), data = holddf)
+models[[13]] <- glm(proportion.eaten ~ as.factor(Trial.x)+as.factor(WeekNum)*as.factor(Period), data = holddf)
+models[[14]] <- glm(proportion.eaten ~ as.factor(Trial.x)*as.factor(WeekNum)+as.factor(Period), data = holddf)
+models[[15]] <- glm(proportion.eaten ~ as.factor(Trial.x)*as.factor(Period)+as.factor(WeekNum), data = holddf)
+
+aictab(models)
+
+holddf <- subset(all, all$Species.x == "HS")
+mod <- glm(proportion.eaten ~ as.factor(Trial.x)*as.factor(Period) + as.factor(WeekNum), data = holddf)
+
+plot(mod)
+
+emm <- emmeans(mod, ~ as.factor(WeekNum))
+pairs(emm, simple = "WeekNum")
+cld_df <- as.data.frame(
+  multcomp::cld(emm, Letters = letters, adjust = "tukey")
+)
+ggplot(cld_df, aes(x = WeekNum, y = emmean, fill = WeekNum)) +
+  geom_col(position = position_dodge(width = 0.9)) +
+  geom_text(
+    aes(label = .group),
+    position = position_dodge(width = 0.9),
+    vjust = -0.4,
+    size = 5
+  ) +
+  labs(
+    y = "Proportion Eaten"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "top"
+  )+
+  scale_fill_manual(values = c("1" = "darkorange",
+                                "2"="darkgreen",
+                                "3"="darkred"))+ coord_cartesian(ylim = c(0, max(cld_df$emmean) * 1.15))
+#Week 1 and 2 are equal; however, week 3 is not equal to 1 or 2...
+```
+
+ANOVA differences between proportion eaten between species and trial
+
+-Use proportion eaten as response variable -> Beta Regression
+-Use amount eaten and add WW as a factor (random...?)
+
+```{R}
+all <- subset(all, all$WeekNum != 1)
+all <- subset(all, all$WeekNum != 2)
 
 # Keep all columns, remove rows with NA in selected columns
 all <- all[!is.na(all$proportion.eaten) &
@@ -380,58 +523,198 @@ all <- all[!is.na(all$proportion.eaten) &
 
 
 #very Right skewed response variables - try transforming them?
+#skewed because it's a proportion! Therefore binomial!
 hist(all$proportion.eaten)
 
 #to transform need to set all those who did eat to 0
 all$proportion.eaten <- ifelse(grepl("DE", all$Notes.x, fixed = TRUE), 0.01, all$proportion.eaten)
 all$proportion.eaten <- ifelse(all$proportion.eaten < 0, 0.01, all$proportion.eaten)
 all$prop_log <- log(all$proportion.eaten)
+hist(all$prop_log)
 
+#USING PROPOTION EATEN WITH GAMMA FAMILY-----------------------------------------------------
+all.mod.gamma <- glm(proportion.eaten ~ Period*Species.x*Trial.x, family = Gamma(link="log"), data = all, na.action = "na.fail")
+dredge(all.mod.gamma, rank = "AIC")
+best.mod.gamma <- glm(proportion.eaten ~ Period + Species.x + Trial.x +
+                        Period*Trial.x + Species.x*Trial.x, family = Gamma(link="log"), data = all)
+
+res <- residuals(best.mod.gamma)
+hist(res)
+library(DHARMa)
+sim <- simulateResiduals(best.mod.gamma)
+plot(sim)
+plot(all.mod.gamma)
+
+library(boot)
+mod.diag <- glm.diag(all.mod.gamma)
+glm.diag.plots(all.mod.gamma, mod.diag)
+
+all.mod.gammaidentity <- glm(proportion.eaten ~ Period*Species.x*Trial.x, family = Gamma(link = "identity"), data = all, na.action = "na.fail")
+dredge(all.mod.gammaidentity, rank = "AIC")
+best.mod.gamma.identity <- glm(proportion.eaten ~ Species.x*Trial.x, family = Gamma(link = "identity"), data = all)
+res <- residuals(best.mod.gamma.identity)
+hist(res)
+library(DHARMa)
+sim <- simulateResiduals(best.mod.gamma.identity)
+plot(sim)
+plot(best.mod.gamma.identity)
+
+library(boot)
+mod.diag <- glm.diag(best.mod.gamma.identity)
+glm.diag.plots(best.mod.gamma.identity, mod.diag)
+
+all.mod <- glm(proportion.eaten ~ Period*Species.x*Trial.x, family = Gamma(link = "inverse"), data = all, na.action = "na.fail")
+dredge(all.mod)
+best.mod <- glm(proportion.eaten ~ Period + Species.x + Trial.x + Period*Trial.x + Species.x*Trial.x, family = Gamma(link = "inverse"), data = all)
+plot(best.mod)
+hist(best.mod$residuals)
+summary(best.mod)
+mod.diag <- glm.diag(best.mod)
+glm.diag.plots(best.mod, mod.diag)
+sim <- simulateResiduals(best.mod)
+plot(sim)
+
+#subsetting by species-------------------------------------------------------
+
+holddf <- subset(all, all$Species.x == "CI")
+all.mod <- glm(proportion.eaten ~ Period*Trial.x, family = Gamma(link = "inverse"), data = holddf, na.action = "na.fail")
+dredge(all.mod)
+best.mod <- glm(proportion.eaten ~ Trial.x, family = Gamma(link = "inverse"), data = holddf)
+plot(best.mod)
+hist(best.mod$residuals)
+summary(best.mod)
+mod.diag <- glm.diag(best.mod)
+glm.diag.plots(best.mod, mod.diag)
+sim <- simulateResiduals(best.mod)
+plot(sim)
+
+#BETA REGRESSION--------------------------------------------------------------------
 models <- list()
-models[[1]] <- glm(proportion.eaten ~ 1, data = all)
-models[[2]] <- glm(proportion.eaten ~ Species.x, data = all)
-models[[3]] <- glm(proportion.eaten ~ as.factor(Trial.x), data = all)
-models[[4]] <- glm(proportion.eaten ~ Species.x + as.factor(Trial.x)+ WW, data = all)
-models[[5]] <- glm(proportion.eaten ~ Species.x * as.factor(Trial.x), data = all)
-models[[6]] <- glm(proportion.eaten ~ Species.x * as.factor(Trial.x) * WW, data = all)
-models[[7]] <- glm(proportion.eaten ~ Species.x * as.factor(Trial.x) + WW, data = all)
-models[[8]] <- glm(proportion.eaten ~ Species.x + as.factor(Trial.x) * WW, data = all)
-models[[9]] <- glm(proportion.eaten ~ Species.x * WW + as.factor(Trial.x), data = all)
+#since betaregression can't handle 0's...
+#just add 0.5 to all values lol
+all$proportion.eaten.weight <- all$proportion.eaten + 0.5
 
-names(models) <- c("null","species","trial","addall","internoweight", "interyesweight", "mixed", "mixed2", "mixed3")
+models[[1]] <- betareg(proportion.eaten.weight ~ Species.x*as.factor(Trial.x)*as.factor(Period), data = all, link = "logit", na.action = "na.fail")
+models[[2]] <- betareg(proportion.eaten.weight ~ Species.x+as.factor(Trial.x)+as.factor(Period), data = all, link = "logit", na.action = "na.fail")
+models[[3]] <- betareg(proportion.eaten.weight ~ Species.x*as.factor(Trial.x)+as.factor(Period), data = all, link = "logit", na.action = "na.fail")
+models[[4]] <- betareg(proportion.eaten.weight ~ Species.x+as.factor(Trial.x)*as.factor(Period), data = all, link = "logit", na.action = "na.fail")
+models[[5]] <- betareg(proportion.eaten.weight ~ Species.x*as.factor(Period)+as.factor(Trial.x), data = all, link = "logit", na.action = "na.fail")
+
 aictab(models)
 
+best.mod <- betareg(proportion.eaten.weight ~ Species.x*as.factor(Trial.x)*as.factor(Period) | Species.x, data = all, link = "logit", na.action = "na.fail")
+
+res <- residuals(best.mod, type = "pearson")
+fitted <- fitted(best.mod)
+
+plot(fitted, res,
+     xlab = "Fitted values",
+     ylab = "Pearson residuals")
+abline(h = 0, col = "red")
+
+qres <- residuals(best.mod, type = "quantile")
+qqnorm(qres)
+qqline(qres)
+
+var(residuals(best.mod, type = "pearson"))
+
+
+emm <- emmeans(
+  best.mod,
+  ~ Species.x * Trial.x * Period,
+  type = "response"   # IMPORTANT
+)
+emm
+
+
+cld_df <- as.data.frame(
+  multcomp::cld(emm, Letters = letters, adjust = "tukey")
+)
+
+
+
+#QUASIBINOMIAL----------------------------------------------------------------------------------
+#fitting a binomial with a logit link - set the values to 0 (those that are negative)
+models <- list()
+
+models[[1]] <- glm(proportion.eaten ~ 1, data = all, family = quasibinomial("logit"), na.action = "na.fail")
+models[[2]] <- glm(proportion.eaten ~ Species.x*as.factor(Trial.x)*as.factor(Period), data = all, family = quasibinomial("logit"), na.action = "na.fail")
+models[[3]] <- glm(proportion.eaten ~ Species.x+as.factor(Trial.x)+as.factor(Period), data = all, family = quasibinomial("logit"), na.action = "na.fail")
+models[[4]] <- glm(proportion.eaten ~ Species.x+as.factor(Trial.x)*as.factor(Period), data = all, family = quasibinomial("logit"), na.action = "na.fail")
+models[[5]] <- glm(proportion.eaten ~ Species.x*as.factor(Trial.x)+as.factor(Period), data = all, family = quasibinomial("logit"), na.action = "na.fail")
+models[[6]] <- glm(proportion.eaten ~ as.factor(Trial.x)+as.factor(Period)*Species.x, data = all, family = quasibinomial("logit"), na.action = "na.fail")
+models[[7]] <- glm(proportion.eaten ~ as.factor(Period)*Species.x, data = all, family = quasibinomial("logit"), na.action = "na.fail")
+models[[8]] <- glm(proportion.eaten ~ as.factor(Period)+Species.x, data = all, family = quasibinomial("logit"), na.action = "na.fail")
+models[[9]] <- glm(proportion.eaten ~ as.factor(Period)*Trial.x, data = all, family = quasibinomial("logit"), na.action = "na.fail")
+models[[10]] <- glm(proportion.eaten ~ as.factor(Period)+Trial.x, data = all, family = quasibinomial("logit"), na.action = "na.fail")
+models[[11]] <- glm(proportion.eaten ~ Species.x*Trial.x, data = all, family = quasibinomial("logit"), na.action = "na.fail")
+models[[12]] <- glm(proportion.eaten ~ Species.x+Trial.x, data = all, family = quasibinomial("logit"), na.action = "na.fail")
+models[[13]] <- glm(proportion.eaten ~ Species.x, data = all, family = quasibinomial("logit"), na.action = "na.fail")
+models[[14]] <- glm(proportion.eaten ~ Trial.x, data = all, family = quasibinomial("logit"), na.action = "na.fail")
+models[[15]] <- glm(proportion.eaten ~ Period, data = all, family = quasibinomial("logit"), na.action = "na.fail")
+
+aictab(models)
+
+hist(allmod$residuals)
+plot(allmod)
+
+#WW AS A FACTOR---------------------------------------------------------------------------
 #best model via AIC
 best.mod <- glm(proportion.eaten ~ Species.x * as.factor(Trial.x) * WW, data = all)
 plot(best.mod)
+hist(best.mod$residuals)
 
-#logged models
-models <- list()
-models[[1]] <- glm(prop_log ~ 1, data = all)
-models[[2]] <- glm(prop_log ~ Species.x, data = all)
-models[[3]] <- glm(prop_log ~ as.factor(Trial.x), data = all)
-models[[4]] <- glm(prop_log ~ Species.x + as.factor(Trial.x)+ WW, data = all)
-models[[5]] <- glm(prop_log ~ Species.x * as.factor(Trial.x), data = all)
-models[[6]] <- glm(prop_log ~ Species.x * as.factor(Trial.x) * WW, data = all)
-models[[7]] <- glm(prop_log ~ Species.x * as.factor(Trial.x) + WW, data = all)
-models[[8]] <- glm(prop_log ~ Species.x + as.factor(Trial.x) * WW, data = all)
-models[[9]] <- glm(prop_log ~ Species.x * WW + as.factor(Trial.x), data = all)
+#Using total amount eaten and adding WW as a factor
+all.mod <- glm(amount.eaten ~ Species.x * as.factor(Trial.x) * WW * Period, data = all)
+dredge(all.mod, rank = "AIC")
 
-names(models) <- c("null","species","trial","addall","internoweight", "interyesweight", "mixed", "mixed2", "mixed3")
-aictab(models)
-
-hist(all$prop_log)
-best.mod <- glm(prop_log ~ Species.x * as.factor(Trial.x) * WW, data = all)
-plot(best.mod)
-plot(best.mod$residuals)
-
-library(nlme)
-
-library(GGally)
-
-ggpairs(all,columns = c("proportion.eaten", "WW", "Trial.x", "Species.x"))
+best_model <- glm(
+  amount.eaten ~
+    as.factor(Trial.x) * Period * Species.x +
+    WW * Period +
+    WW * as.factor(Trial.x) +
+    WW * Species.x,
+  data = all
+)
 
 
+plot(best_model)
+hist(best_model$residuals)
+summary(best_model)
+
+#violating constantance of variance rule
+
+#transform amount eaten to see if it makes it better
+hist(all$amount.eaten)
+all$amount.eaten <- ifelse(all$amount.eaten < 0, 0, all$amount.eaten)
+all$amount.eaten.trans <- log(all$amount.eaten + 1)
+hist(all$amount.eaten.trans)
+
+#when dividing up the individual species, you can see it follows an almost normal pattern with a large influx of 0's (didn't eat or dead)
+holddf <- subset(all, all$Species.x == "HS")
+all.mod <- glm(amount.eaten.trans ~  as.factor(Trial.x) * WW * Period, data = holddf)
+hist(holddf$amount.eaten.trans)
+holddf <- subset(all, all$Species.x == "CM")
+all.mod <- glm(amount.eaten.trans ~  as.factor(Trial.x) * WW * Period, data = holddf)
+hist(holddf$amount.eaten.trans)
+holddf <- subset(all, all$Species.x == "CI")
+all.mod <- glm(amount.eaten.trans ~  as.factor(Trial.x) * WW * Period, data = holddf)
+hist(holddf$amount.eaten.trans)
+
+dredge(all.mod, rank = "AIC")
+
+best_model <- glm(
+  amount.eaten.trans ~
+    as.factor(Trial.x) * Period * Species.x +
+    WW * Period +
+    WW * as.factor(Trial.x) +
+    WW * Species.x,
+  data = all
+)
+
+plot(best_model)
+
+#GLS stuff-------------------------------------------------------------------------------
 models <- list()
 models[[1]] <- gls(proportion.eaten ~ Species.x * factor(Trial.x) * WW,
              weights = varPower(form = ~fitted(.)),
@@ -516,6 +799,7 @@ Things I found:
 -For NN2, adding week 2 and 3 into the proportion eaten model does not change much (some letter changes)
 
 Questions:
--If I've added proportion eaten as part of the model (which is based on weight), do I need to add weight as an explanatory variable? When using ggpairs, there is correlation between Wet weight and proportion eaten (expected)
+-If I've added proportion eaten as part of the model (which is based on weight), do I need to add weight as an explanatory variable? When using ggpairs, there is correlation between Wet weight and proportion eaten (expected). AIC outputs it's a better model?
 -Do we use GLMs because sometimes there isn't a normal distribution?
+-Acclimation: should we trust the AIC return and models? AIC returns no interaction with WeekNum (doesn't change across Trial and Period for ALL species). Model diagnostic plots look good. Only concern - looks different when plotting out means and SE
 
