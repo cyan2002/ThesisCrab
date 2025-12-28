@@ -1,4 +1,4 @@
-ID,System,CL,WW,Trial,Species,Condition,Period,Date,Notes
+ID,System,CL,WW,Temperature,Species,Condition,Period,Date,Notes
 CM1,1,71,87.84,22,Carcinus,,1,6/3/25,
 CM3,1,71,91.28,22,Carcinus,,1,6/3/25,
 CM4,1,73,104,22,Carcinus,,1,6/13/25,Replaced

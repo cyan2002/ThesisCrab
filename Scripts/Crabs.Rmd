@@ -44,13 +44,14 @@ library(hms)
 library(dplyr)
 library(emmeans)
 library(knitr)
+library(brglm)
 setwd("/Users/chanceyan/Documents/R/ThesisCrab/Data")
-crabdata <- read.csv("Feeding.csv", h=T)
-death <- read.csv("DeathCount.csv", h=T)
-master <- read.csv("Master.csv", h=T)
-deathMeta <- read.csv("Death.csv", h=T)
-husbandry <- read.csv("Husbandry.csv", h=T)
-checkout <- read.csv("CheckOut.csv", h=T)
+crabdata <- read.csv("Feeding.csv", h=T, stringsAsFactors = FALSE)
+death <- read.csv("DeathCount.csv", h=T, stringsAsFactors = FALSE)
+master <- read.csv("Master.csv", h=T, stringsAsFactors = FALSE)
+deathMeta <- read.csv("Death.csv", h=T, stringsAsFactors = FALSE)
+husbandry <- read.csv("Husbandry.csv", h=T, stringsAsFactors = FALSE)
+checkout <- read.csv("CheckOut.csv", h=T, stringsAsFactors = FALSE)
 ```
 
 #### Cleaning up data for use
@@ -67,9 +68,6 @@ NOTE: "feeding points" refer to a measurement of feeding. Therefore we have mult
 -   The rest of the code is marking individuals if they've eaten or not, still eaten, making extra variables so that further analyses are easier.
 
 ```{R include = FALSE, warning = FALSE}
-crabdata$FoodIn <- as.numeric(as.character(crabdata$FoodIn))
-crabdata$FoodOut <- as.numeric(as.character(crabdata$FoodOut))
-
 #removing rows that contain no data or recorded incorrectly
 for(i in 1:nrow(crabdata)){
   if(!is.numeric(crabdata[i,4])){
@@ -89,6 +87,10 @@ for(i in 1:36){
 
 crabdata$amount.eaten <- crabdata$FoodIn-crabdata$FoodOut
 all <- merge(crabdata, master, by="ID")
+
+#renaming temperature.x to temperature
+all <- all %>% select(-Temperature.y)
+names(all)[names(all) == "Temperature.x"] <- "Temperature"
 
 #Changing date column into a date data type, so that R can read it as a Date.
 all$Date.x = as.Date(all$Date.x, format = "%m/%d/%Y")
@@ -121,14 +123,14 @@ all <- all[-array,]
 array <- c()
 
 #Removing these dates because feeding was not following a strict schedule (fed two days back to back)
-all <- subset(all, !(WeekNum == 1 & Trial.x == 16))
-all <- subset(all, !(WeekNum == 1 & Trial.x == 22 & Period == 1))
+all <- subset(all, !(WeekNum == 1 & Temperature == 16))
+all <- subset(all, !(WeekNum == 1 & Temperature == 22 & Period == 1))
 
 #Changing trials 16 and 18 to be one.
 original <- all
-all$Trial.x <- ifelse(all$Trial.x == "16", "18", all$Trial.x)
-original$Trial.x <- ifelse(original$Trial.x == "16", "18", original$Trial.x)
-master$Trial <- ifelse(master$Trial == "16", "18", master$Trial)
+all$Temperature <- ifelse(all$Temperature == 16, 18, all$Temperature)
+original$Temperature <- ifelse(original$Temperature == 16, 18, original$Temperature)
+master$Temperature <- ifelse(master$Temperature == 16, 18, master$Temperature)
 
 #Here, I am marking all those who did not eat
 EatDF <- subset(all, grepl("DE", all$Notes.x, fixed = TRUE))
@@ -161,13 +163,13 @@ all$TimeOutStrip <- as.POSIXct(paste(all$Date.x, all$TimeOut), format = "%Y-%m-%
 
 #because we removed the first week from trials 1 and 2, to get the final week, I'll just subtract one from the value to line it up so that week 4 equals week 3 and make it easier for me to graph
 
-all$WeekNum <- ifelse((all$Trial.x == "18" & all$WeekNum == 2 & all$Period == 1), "1", all$WeekNum)
-all$WeekNum <- ifelse((all$Trial.x == "18" & all$WeekNum == 3 & all$Period == 1), "2", all$WeekNum)
-all$WeekNum <- ifelse((all$Trial.x == "18" & all$WeekNum == 4 & all$Period == 1), "3", all$WeekNum)
+all$WeekNum <- ifelse((all$Temperature == 18 & all$WeekNum == 2 & all$Period == 1), 1, all$WeekNum)
+all$WeekNum <- ifelse((all$Temperature == 18 & all$WeekNum == 3 & all$Period == 1), 2, all$WeekNum)
+all$WeekNum <- ifelse((all$Temperature == 18 & all$WeekNum == 4 & all$Period == 1), 3, all$WeekNum)
 
-all$WeekNum <- ifelse((all$Trial.x == "22" & all$WeekNum == 2 & all$Period == 1), "1", all$WeekNum)
-all$WeekNum <- ifelse((all$Trial.x == "22" & all$WeekNum == 3 & all$Period == 1), "2", all$WeekNum)
-all$WeekNum <- ifelse((all$Trial.x == "22" & all$WeekNum == 4 & all$Period == 1), "3", all$WeekNum)
+all$WeekNum <- ifelse((all$Temperature == 22 & all$WeekNum == 2 & all$Period == 1), 1, all$WeekNum)
+all$WeekNum <- ifelse((all$Temperature == 22 & all$WeekNum == 3 & all$Period == 1), 2, all$WeekNum)
+all$WeekNum <- ifelse((all$Temperature == 22 & all$WeekNum == 4 & all$Period == 1), 3, all$WeekNum)
 
 #making a new ID for those that are placements
 all$ID <- ifelse(grepl("RE", all$Notes.x), paste(all$ID, "R"), all$ID)
@@ -224,117 +226,310 @@ censor <- subset(censor, !is.na(censor$proportion.eaten))
 
 ```{r echo = FALSE, warning = FALSE}
 #inclusive model
-a <- tapply(inclusive$ID, list(inclusive$Species.x, inclusive$Trial.x), FUN = function(x) length(unique(x)))
-b <- tapply(inclusive$proportion.eaten, list(inclusive$Species.x, inclusive$Trial.x), FUN = length)
+a <- tapply(inclusive$ID, list(inclusive$Species.x, inclusive$Temperature), FUN = function(x) length(unique(x)))
+b <- tapply(inclusive$proportion.eaten, list(inclusive$Species.x, inclusive$Temperature), FUN = length)
 
 #censor model
-d <- tapply(censor$ID, list(censor$Species.x, censor$Trial.x), FUN = function(x) length(unique(x)))
-e <- tapply(censor$proportion.eaten, list(censor$Species.x, censor$Trial.x), FUN = length)
+d <- tapply(censor$ID, list(censor$Species.x, censor$Temperature), FUN = function(x) length(unique(x)))
+e <- tapply(censor$proportion.eaten, list(censor$Species.x, censor$Temperature), FUN = length)
 
-kable(rbind(Inclusive = a, Censor = d), caption = "Sample size by model, species, and trial. Inclusive on top, Censor on the bottom")
-kable(rbind(Inclusive = b, Censor = e), caption = "Sample size by model, for each feeding trial. Inclusive on top, Censor on the bottom")
+kable(rbind(Inclusive = a, Censor = d), caption = "Inclusive on top, Censor on the bottom. Number of Individuals")
+kable(rbind(Inclusive = b, Censor = e), caption = "Inclusive on top, Censor on the bottom. Number of Feeding Points")
 ```
 
-### Death Count
+### Death OR Alive
 
-BINARY dead or alive (one off - is not affected by removal or replacement of dead crabs)
+What I did:
+-I added the extras om the master dataframe which contains all individuals who were ever in the systems that are included in the project
+-I then created two exploratory graphs to represent how the data looks in general - NOTE - a good model should show that there is an DECREASe in alive individuals as temperature increases for the Rock Crab. Greeb crabs and shore crabs should remain relatively flat (no increase death with temperatures)
+-To account for the separated data I will use a bias reduced GLM. Following code from: https://bscheng.com/2016/12/11/modeling-completely-separated-data-in-r/
+-I then fit the model to an all mod (all explanatory variables added with interactions). Then dredged the model to see which model is the "best"
+-The best model came back as one that included temperature and Species (all explanatory variables); however, without interactions
+-Best model <- dead ~ Temperature(numeric) + Species
+-This best model summary tells us there are differences in the INTERCEPTS between green crabs/shore crabs and rock crabs. The model also indicates that there is a slope that is negative for ALL species. This is because we did not include an interaction (including an interaction makes the model find no differences and AIC finds no interaction model a worse one)
+-Since it seems obvious that rock crabs are doing worse than green crabs and shore crabs (a little disappointed it didn't pick it up), I modeled with just rock crab data
+-I modeled just rock crab data and found that there was a signficantly negative slope as temperature increases.
+
+Summary: I modeled dead and alive crabs using a bias reduced GLM. After dredging the best model was a full addivite model (temperature and species); however, the model dictataes all species have the same slope (decrease of alive individuals across temperature) and therefore I modeled just rock crabs to see a negative slope (decrease in alive individuals)
+
 ```{R}
 #parsing between those who died during the experiment and those who lived
 master$dead <- ifelse(master$ID %in% deathMeta$ID, 0, 1)	
 
+#changing name from Trial to Temperature to avoid confusion
+names(master)[names(master) == "Trial"] <- "Temperature"
+
 #addition of extras
 {
-add_rows <- data.frame(ID = "extra1_26", System = NA, CL = NA, WW = NA, Trial = "26", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 0)
+add_rows <- data.frame(ID = "extra1_26", System = NA, CL = NA, WW = NA, Temperature = 26, Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 0)
 master <- rbind(master, add_rows)
-add_rows <- data.frame(ID = "extra2_26", System = NA, CL = NA, WW = NA, Trial = "26", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 0)
+add_rows <- data.frame(ID = "extra2_26", System = NA, CL = NA, WW = NA, Temperature = 26, Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 0)
 master <- rbind(master, add_rows)
-add_rows <- data.frame(ID = "extra1_24", System = NA, CL = NA, WW = NA, Trial = "24", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 0)
+add_rows <- data.frame(ID = "extra1_24", System = NA, CL = NA, WW = NA, Temperature = 24, Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 0)
 master <- rbind(master, add_rows)
-add_rows <- data.frame(ID = "extra2_24", System = NA, CL = NA, WW = NA, Trial = "24", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 1)
+add_rows <- data.frame(ID = "extra2_24", System = NA, CL = NA, WW = NA, Temperature = 24, Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 1)
 master <- rbind(master, add_rows)
-add_rows <- data.frame(ID = "extra1_22", System = NA, CL = NA, WW = NA, Trial = "22", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 1)
+add_rows <- data.frame(ID = "extra1_22", System = NA, CL = NA, WW = NA, Temperature = 22, Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 1)
 master <- rbind(master, add_rows)
-add_rows <- data.frame(ID = "extra2_22", System = NA, CL = NA, WW = NA, Trial = "22", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 1)
+add_rows <- data.frame(ID = "extra2_22", System = NA, CL = NA, WW = NA, Temperature = 22, Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 1)
 master <- rbind(master, add_rows)
-add_rows <- data.frame(ID = "extra1_20", System = NA, CL = NA, WW = NA, Trial = "20", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 1)
+add_rows <- data.frame(ID = "extra1_20", System = NA, CL = NA, WW = NA, Temperature = 20, Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 1)
 master <- rbind(master, add_rows)
-add_rows <- data.frame(ID = "extra2_20", System = NA, CL = NA, WW = NA, Trial = "20", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 1)
+add_rows <- data.frame(ID = "extra2_20", System = NA, CL = NA, WW = NA, Temperature = 20, Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 1)
 master <- rbind(master, add_rows)
-add_rows <- data.frame(ID = "extra1_18", System = NA, CL = NA, WW = NA, Trial = "18", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 1)
+add_rows <- data.frame(ID = "extra1_18", System = NA, CL = NA, WW = NA, Temperature = 18, Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 1)
 master <- rbind(master, add_rows)
-add_rows <- data.frame(ID = "extra2_18", System = NA, CL = NA, WW = NA, Trial = "18", Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 1)
+add_rows <- data.frame(ID = "extra2_18", System = NA, CL = NA, WW = NA, Temperature = 18, Species = "Irroratus", Condition = NA, Period = NA, Date = NA, Notes = NA, num = NA, dead = 1)
 master <- rbind(master, add_rows)
 }
 
-ggplot(master, aes(x = Trial, fill = as.factor(dead))) + geom_bar() +
+mastergraph <-  master %>%
+  count(Species, Temperature, dead) %>%
+  group_by(Species, Temperature) %>%
+  mutate(
+    proportion = n / sum(n)
+  )
+
+mastergraph$dead <- factor(mastergraph$dead, levels = c(1,0))
+
+ggplot(mastergraph, aes(x = Temperature, y = proportion, fill = dead)) + geom_col() + facet_wrap(~Species)+
+  scale_fill_manual(values = c("0" = "darkred", "1" = "darkgreen")) + ggtitle("Proportion of crab deaths across temperature")
+
+mastergraph <- master
+mastergraph$dead <- factor(mastergraph$dead, levels = c(0,1))
+
+ggplot(mastergraph, aes(x = Temperature, y = dead, color = dead)) + geom_point(position = position_jitter(width = 0.005)) +
+  geom_smooth(aes(group = 1), method = "loess", se = FALSE) +
   xlab("Temperature")+
   ylab("Count")+
-  facet_wrap(~Species)
+  facet_wrap(~Species)+
+  ggtitle("The counts of dead vs alive individuals in each trial for each species")+
+  scale_color_manual(values = c("0" = "darkred", "1" = "darkgreen"))
 
-#WHERE I'M LEAVING OFF - Finish binomial stat analysis, turn trial into a numerical and call is temperature
+#using 
+all.mod <- brglm(dead ~ Temperature*Species, family = binomial, data = master, na.action = "na.fail")
+dredge(all.mod, rank = "AICc")
 
-all.mod <- glm(dead ~ Trial*Species, family = binomial, data = master, na.action = "na.fail")
-dredge(all.mod, rank = "AIC")
-
-best.mod <- glm(dead ~ Trial + Species, family = binomial, data = master, na.action = "na.fail")
-
+#the best mod is inclusion of Species and Trial with no interaction
+best.mod <- brglm(dead ~ Temperature + Species, family = binomial, data = master, na.action = "na.fail")
 summary(best.mod)
-#standard error same and giant -> separation
+#what's the best way to create diagnostic plots for this?
 
-res <- simulateResiduals(best.mod)
-plot(res)
-testDispersion(res)
+master$Species <- factor(master$Species)
+newdat <- expand.grid(Temperature = seq(min(master$Temperature), max(master$Temperature), length.out = 100), Species = levels(master$Species))
+newdat$Species <- factor(newdat$Species, levels = levels(master$Species))
 
-emm <- emmeans(best.mod, ~ Trial | Species)
-pairs(emm)
+newdat$pred <- predict(best.mod, newdata = newdat, type = "response")
 
-ggplot(aes(a))
+ggplot(master, aes(x = Temperature, y = dead, color = Species)) +
+  geom_point(position = position_jitter(height = 0.05), alpha = 0.6) +
+  geom_line(data = newdat, aes(x = Temperature, y = pred, color = Species), linewidth = 1) +
+  scale_y_continuous(limits = c(0, 1)) + 
+  ggtitle("The number of dead (0) vs alive (1) crabs across 5 different temperatures") + 
+  scale_color_manual(values = c("Carcinus" = "darkgreen",
+                                "Hemigrapsus" = "darkred",
+                                "Irroratus" = "darkorange"))
 
-#just looking at cancer irroratus since HS and CM have very little deaths
-#dropping trials and species that have 0 deaths gives us something to work with
+#just Cancer Irroratus
 holddf <- subset(master, master$Species == "Irroratus")
+all.mod <- brglm(dead ~ Temperature, family = binomial, data = holddf, na.action = "na.fail")
+dredge(all.mod, rank = "AICc")
+best.mod <- brglm(dead ~ Temperature, family = binomial, data = holddf, na.action = "na.fail")
+summary(best.mod)
 
-mod <-  glm(dead ~ Trial, family = binomial, data = holddf, na.action = "na.fail")
-summary(mod)
-plot(mod)
+newdat <- data.frame(Temperature = seq(min(holddf$Temperature), max(holddf$Temperature), length.out = 100))
 
-res <- simulateResiduals(mod)
-plot(res)
-testDispersion(res)
+newdat$pred <- predict(best.mod, newdata = newdat, type = "response")
 
-emm <- emmeans(mod, ~ Trial)
-pairs(emm)
-
-str(master)
-
-summary(mod)
-#model 
-#trial/temperature as a continous factor
-#-if you have a lot of temperature
-#thinking of temperature on a contimum
-#don't use as.numeric to change back
-#just don't use as.factor to begin with
-#ALSO - RECLASSIFY THINGS THAT ARE CATEGORICAL AS FACTORS
-#read.csv argument, strings as factors = true (automatically does it for you)
+ggplot(holddf, aes(x = Temperature, y = dead)) +
+  geom_point(position = position_jitter(height = 0.05), alpha = 0.6) +
+  geom_line(data = newdat, aes(x = Temperature, y = pred), color = "darkorange", linewidth = 1) +
+  scale_y_continuous(limits = c(0, 1)) + 
+  ggtitle("The number of dead (0) vs alive (1) Atlantic rock crabs across 5 different temperatures")
 ```
 
-*Cancer irroratus* have the highest death count among all 3 species with *Hemigrapsus* having none and *Carcinus meanus* only having two death counts. Across trials with *Cancer irroratus*, the higher the trial temperature the more deaths there are as well.
+### Acclimation
+
+-I started by graphing what we would expect the acclimation models to suggest.
+-If acclimation worked, we should expect an increase or decrease in the first week to the second then it should hit a flat line (indicating no change in consumption) going from week 2 to 3. That would indicate 2 weeks of acclimation is sufficient for measuring consumption
+-I summarized the mean and standard error for each species, temperature and period then graphed the proportion consumed over week number to test if the acclimation worked. I also compared these graphs between the censor model and inclusive model
+-I found very little differences (visually) between the inclusive and censor model
+-Off to modeling!
+
+```{R echo = FALSE, warning = FALSE}
+summary_inclusive <- inclusive %>%
+  group_by(Species.x, Temperature, Period, WeekNum) %>%
+  summarise(
+    mean = mean(proportion.eaten),
+    se = sd(proportion.eaten) / sqrt(n())
+  )
+
+summary_inclusive$SpeciesPeriod <- paste(summary_inclusive$Species.x, summary_inclusive$Period, sep = "_")
+
+summary_censor <- censor %>%
+  group_by(Species.x, Temperature, Period, WeekNum) %>%
+  summarise(
+    mean = mean(proportion.eaten),
+    se = sd(proportion.eaten) / sqrt(n())
+  )
+
+summary_censor$SpeciesPeriod <- paste(summary_censor$Species.x, summary_censor$Period, sep = "_")
+
+#INCLUSIVE MODEL
+ggplot(summary_inclusive, aes(x = as.numeric(WeekNum), y = mean, color = SpeciesPeriod)) + 
+  geom_point(position = position_dodge(width = 0.2)) + 
+  facet_wrap(~as.factor(Temperature)) +
+  ggtitle("Proportion consumed over week number for the inclusive model") + 
+  geom_smooth(method = "loess", se = FALSE)+
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se), position = position_dodge(width = 0.2))+
+  scale_color_manual(values = c("CI_1" = "darkorange3",
+                     "CI_2" = "orange",
+                     "CM_1" = "darkgreen",
+                     "CM_2" = "green3",
+                     "HS_1" = "darkred",
+                     "HS_2" = "red3"))
+
+#CENSOR MODEL
+ggplot(summary_censor, aes(x = as.numeric(WeekNum), y = mean, color = SpeciesPeriod)) + 
+  geom_point(position = position_dodge(width = 0.2)) + 
+  facet_wrap(~as.factor(Temperature)) +
+  ggtitle("Proportion consumed over week number for the censor model") + 
+  geom_smooth(method = "loess", se = FALSE)+
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se), position = position_dodge(width = 0.2))+
+  scale_color_manual(values = c("CI_1" = "darkorange3",
+                     "CI_2" = "orange",
+                     "CM_1" = "darkgreen",
+                     "CM_2" = "green3",
+                     "HS_1" = "darkred",
+                     "HS_2" = "red3"))
+
+#proportion eaten (our response variable) is right skewed, not normal violates assumption
+hist(inclusive$proportion.eaten) #contains negative values
+inclusive$sqrtproportion.eaten <- sqrt(inclusive$proportion.eaten + 1)
+qqnorm(inclusive$proportion.eaten)
+hist(inclusive$sqrtproportion.eaten)
+
+hist(censor$proportion.eaten) #doesn't contain negative values
+
+censor$proportion.eaten <- ifelse(censor$proportion.eaten == 0, .001, censor$proportion.eaten)
+hist(censor$proportion.eaten)
+all.mod <- glm(proportion.eaten ~ Species.x*Temperature*as.factor(Period), family = Gamma("inverse"), data = censor, na.action = "na.fail")
+dredge(all.mod, rank = "AICc")
+
+best.mod <- glm(proportion.eaten ~ as.factor(Period) + Species.x + Temperature + as.factor(Period)*Species.x + Species.x*Temperature, family = Gamma("inverse"), data = censor)
+summary(best.mod)
+plot(best.mod)
+
+```
+
+### Looking at the proportion eaten for each trial for each individual species (CI, CM, and HS)
+
+```{R, echo=FALSE,results='hide',fig.keep='all'}
+#only accounting for final week of trial
+finalEat <- subset(all, all$WeekNum == 3)
+
+summary_df <- finalEat %>%
+  group_by(Species.x, Temperature, Period) %>%
+  summarise(
+    mean = mean(proportion.eaten),
+    se = sd(proportion.eaten) / sqrt(n())
+  )
+
+ggplot(summary_df, aes(x = as.numeric(Temperature), y = mean, color = Species.x)) + geom_point(position = position_dodge(width = 0.3))+
+  scale_color_manual(values = c("HS" = "darkred",
+                                 "CM" = "darkgreen",
+                                 "CI" = "darkorange"))+
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
+                width = 0.1, size = 0.8, position = position_dodge(width = 0.3)) +
+  geom_smooth(method = "loess", se = FALSE)+ scale_y_log10()+
+  ylab("Logged Mean of Proportion Eaten")+
+  xlab("Trial Temperature") + labs(color = "Species")+
+  ggtitle("Proportion Consumed over Trial Temperature")
+
+holddf <- subset(finalEat, finalEat$Species.x == "CI")
+mod <- glm(holddf$proportion.eaten ~ as.factor(holddf$Temperature))
+summary(mod)
+emm <- emmeans(mod, ~ as.factor(Temperature))
+pairs_data <- pairs(emm)
+pairs_data
+
+holddf <- subset(finalEat, finalEat$Species.x == "CM")
+mod <- glm(holddf$proportion.eaten ~ as.factor(holddf$Temperature))
+summary(mod)
+emm <- emmeans(mod, ~ as.factor(Temperature))
+pairs_data <- pairs(emm)
+pairs_data
+
+holddf <- subset(finalEat, finalEat$Species.x == "HS")
+mod <- glm(holddf$proportion.eaten ~ as.factor(holddf$Temperature))
+summary(mod)
+emm <- emmeans(mod, ~ as.factor(Temperature))
+pairs_data <- pairs(emm)
+pairs_data
+```
+
+
+
+EXTRAS
 
 #### Amount of who did not eat by species and trial
 
 ```{R, echo = FALSE, warning = FALSE}
 all$eaten <- factor(all$eaten, levels = c("YES", "NO"))
 all$Species.x <- factor(all$Species.x, levels = c("HS", "CM", "CI"))
-ggplot(all, aes(x = Trial.x, fill = eaten)) + geom_bar(stat = "count") + facet_wrap(~Species.x)+
+ggplot(all, aes(x = Temperature, fill = eaten)) + geom_bar(stat = "count") + facet_wrap(~Species.x)+
   scale_fill_manual(values = c("YES" = "darkolivegreen4",
                                 "NO"="darkred"))+ggtitle("Amount of Times Individuals did not eat")+xlab("Trial Temperature") + ylab("Count")
 
 #Amount of those who are still eating vs not eating
 all$still_eating <- factor(all$still_eating, leve = c("NO", "YES"))
-ggplot(all, aes(x = Trial.x, fill = still_eating))+ geom_bar(stat = "count") + facet_wrap(~Species.x)+
+ggplot(all, aes(x = Temperature, fill = still_eating))+ geom_bar(stat = "count") + facet_wrap(~Species.x)+
   ggtitle("Amount of those who are still eating vs not eating") +
   scale_fill_manual(values = c("YES" = "darkolivegreen4",
                                 "NO"="darkred"))+xlab("Trial Temperature") + ylab("Count")
+```
+
+### Schedule
+
+```{R echo = FALSE}
+date_list <- data.frame(date = NA, trial = NA, period = NA)
+date_list$date <- as.Date(date_list$date)
+trial_list <- list("18", "20", "22", "24", "26")
+
+for(a in 1:2){
+  for(i in 1:length(trial_list)){
+  holddf <- subset(original, original$Temperature == trial_list[i] & original$Period == a)
+  dates <- unique(holddf$Date.x)
+  for(j in 1:length(dates)){
+    date_list[nrow(date_list) + 1,] <- list(dates[j], trial_list[i], a)
+  }
+}
+}
+date_list <- na.omit(date_list)
+
+date_list$trial <- unlist(date_list$trial)
+date_list$weekday <- weekdays(date_list$date)
+date_list$month <- month(date_list$date)
+date_list$day <- format(as.Date(date_list$date,format="%y-%m-%d"), format = "%d")
+
+date_list$weekday <- as.factor(date_list$weekday)
+date_list$month <- as.factor(date_list$month)
+date_list$day <- as.factor(date_list$day)
+
+date_list <- na.omit(date_list)
+date_list$day <- as.numeric(as.character(date_list$day))  # "09" → 9
+date_list$day <- factor(date_list$day, levels = 1:31)
+
+ggplot(date_list, aes(x = day, y = as.factor(trial), fill = as.factor(period))) +
+  geom_tile(color = "black",alpha = 0.5) +
+  facet_wrap(~ month, ncol = 1) +
+  coord_fixed() +
+  scale_x_discrete(drop = FALSE)+
+  ggtitle("Trial schedule for the Summer of 2025")+
+  xlab("Day")+
+  ylab("Trial Temperature")+ guides(fill=guide_legend(title="Period")) + theme_classic() +
+  scale_fill_manual(values = c("1" = "red4",
+                                "2"="blue4"))
 ```
 
 ## Outlier Search
@@ -418,26 +613,6 @@ ggplot(all, aes(x = proportion.eaten, fill = Species.x)) + geom_histogram(binwid
 #everyone looks normal except for hemigrapsus which has some trialing end points
 ```
 
--   *Cancer irroratus* are larger than the other two species followed by *Carcinus meanus* then the smallest as *Hemigrapsus*.
-
--   The pattern is opposite when it comes to the amount they've eaten proportionally. So *Hemigrapsus* eats the most and *Cancer irroratus* eats the least.
-
-There is a nice relationship between carapace length and wet weight. However, there was an outlier. I have thrown it out since it's the ONLY one so far off, but I have checked and data was entered correctly.
-
-For each species on wet weight normality:
-
--Cancer: Pretty normal
-
--Green crab: Normal with some outliers
-
--Hemi: Normal with some outliers
-
-It seems like Cancer crabs have a left leaning normality curve. Green crabs have a normal spread. Hemigrapsus have a left leaning curve as well. Unsure if this is even a valid graph because it's kind of what we expected if Cancer crabs are all tanking 0's due to it being too hot.
-
-The only differences between size of trial and species is Hemigrapsus for Trial 26 between period 1 and 2 by about 3 grams of differnece. The other difference is for Trial 24 and 26 in period 2.
-
-#There is a food effect for Squid and Clam for Carcinus and Hemigrapsus; however, maybe call it species difference
-
 ### Size effect on Consumption
 
 ```{R echo = FALSE}
@@ -452,160 +627,18 @@ ggplot(all, aes(x = WW, y = proportion.eaten, color = Species.x)) + geom_point()
                                 "HS"="darkred")) + ylab("Amount Eaten (proportionally)") +xlab("WW (log scale)") +ggtitle("Amount Eaten by Weight") + labs(color = "Species")
 ```
 
-### Schedule
-
-```{R echo = FALSE}
-date_list <- data.frame(date = NA, trial = NA, period = NA)
-date_list$date <- as.Date(date_list$date)
-trial_list <- list("18", "20", "22", "24", "26")
-
-for(a in 1:2){
-  for(i in 1:length(trial_list)){
-  holddf <- subset(original, original$Trial.x == trial_list[i] & original$Period == a)
-  dates <- unique(holddf$Date.x)
-  for(j in 1:length(dates)){
-    date_list[nrow(date_list) + 1,] <- list(dates[j], trial_list[i], a)
-  }
-}
-}
-date_list <- na.omit(date_list)
-
-date_list$trial <- unlist(date_list$trial)
-date_list$weekday <- weekdays(date_list$date)
-date_list$month <- month(date_list$date)
-date_list$day <- format(as.Date(date_list$date,format="%y-%m-%d"), format = "%d")
-
-date_list$weekday <- as.factor(date_list$weekday)
-date_list$month <- as.factor(date_list$month)
-date_list$day <- as.factor(date_list$day)
-
-date_list <- na.omit(date_list)
-date_list$day <- as.numeric(as.character(date_list$day))  # "09" → 9
-date_list$day <- factor(date_list$day, levels = 1:31)
-
-ggplot(date_list, aes(x = day, y = as.factor(trial), fill = as.factor(period))) +
-  geom_tile(color = "black",alpha = 0.5) +
-  facet_wrap(~ month, ncol = 1) +
-  coord_fixed() +
-  scale_x_discrete(drop = FALSE)+
-  ggtitle("Trial schedule for the Summer of 2025")+
-  xlab("Day")+
-  ylab("Trial Temperature")+ guides(fill=guide_legend(title="Period")) + theme_classic() +
-  scale_fill_manual(values = c("1" = "red4",
-                                "2"="blue4"))
-```
-
-Before we can analyze the proportion eaten, we have to understand if the acclimation worked... To do this, we'll bin each week by each other and calculate averages to compare.
-
-### Checking for Acclimation
-
-```{R echo = FALSE, warning = FALSE}
-
-summary_df <- all %>%
-  group_by(Species.x, Trial.x, Period, WeekNum) %>%
-  summarise(
-    mean = mean(proportion.eaten),
-    se = sd(proportion.eaten) / sqrt(n())
-  )
-
-holddf <- subset(summary_df, summary_df$Species.x == "CI")
-
-ggplot(holddf, aes(x = as.numeric(WeekNum), y = mean, color = as.factor(Period))) + 
-  geom_point(position = position_dodge(width = 0.2)) + 
-  facet_wrap(~Trial.x) +
-  ggtitle("Proportion consumed over time for Period 1+2, Rock Crab") + 
-  geom_smooth(method = "loess", se = FALSE)+
-  scale_color_manual(values = c("1" = "red4","2"="blue4"))+
-  xlab("Week Number") + 
-  ylab("Amount Eaten (Proportionally)") + 
-  labs(color = "Period")+
-  geom_errorbar(aes(ymin = mean - se, ymax = mean + se), position = position_dodge(width = 0.2))
-
-holddf <- subset(summary_df, summary_df$Species.x == "CM")
-
-ggplot(holddf, aes(x = as.numeric(WeekNum), y = mean, color = as.factor(Period))) + 
-  geom_point(position = position_dodge(width = 0.2)) + 
-  facet_wrap(~Trial.x) +
-  ggtitle("Proportion consumed over time for Period 1+2, Green Crab") + 
-  geom_smooth(method = "loess", se = FALSE)+
-  scale_color_manual(values = c("1" = "red4","2"="blue4"))+
-  xlab("Week Number") + 
-  ylab("Amount Eaten (Proportionally)") + 
-  labs(color = "Period")+
-  geom_errorbar(aes(ymin = mean - se, ymax = mean + se), position = position_dodge(width = 0.2))
-
-holddf <- subset(summary_df, summary_df$Species.x == "HS")
-
-ggplot(holddf, aes(x = as.numeric(WeekNum), y = mean, color = as.factor(Period))) + 
-  geom_point(position = position_dodge(width = 0.2)) + 
-  facet_wrap(~Trial.x) +
-  ggtitle("Proportion consumed over time for Period 1+2, Asian Shore Crab") + 
-  geom_smooth(method = "loess", se = FALSE)+
-  scale_color_manual(values = c("1" = "red4","2"="blue4"))+
-  xlab("Week Number") + 
-  ylab("Amount Eaten (Proportionally)") + 
-  labs(color = "Period")+
-  geom_errorbar(aes(ymin = mean - se, ymax = mean + se), position = position_dodge(width = 0.2))
-```
-
-### Looking at the proportion eaten for each trial for each individual species (CI, CM, and HS)
-
-```{R, echo=FALSE,results='hide',fig.keep='all'}
-#only accounting for final week of trial
-finalEat <- subset(all, all$WeekNum == 3)
-
-summary_df <- finalEat %>%
-  group_by(Species.x, Trial.x, Period) %>%
-  summarise(
-    mean = mean(proportion.eaten),
-    se = sd(proportion.eaten) / sqrt(n())
-  )
-
-ggplot(summary_df, aes(x = as.numeric(Trial.x), y = mean, color = Species.x)) + geom_point(position = position_dodge(width = 0.3))+
-  scale_color_manual(values = c("HS" = "darkred",
-                                 "CM" = "darkgreen",
-                                 "CI" = "darkorange"))+
-  geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
-                width = 0.1, size = 0.8, position = position_dodge(width = 0.3)) +
-  geom_smooth(method = "loess", se = FALSE)+ scale_y_log10()+
-  ylab("Logged Mean of Proportion Eaten")+
-  xlab("Trial Temperature") + labs(color = "Species")+
-  ggtitle("Proportion Consumed over Trial Temperature")
-
-holddf <- subset(finalEat, finalEat$Species.x == "CI")
-mod <- glm(holddf$proportion.eaten ~ as.factor(holddf$Trial.x))
-summary(mod)
-emm <- emmeans(mod, ~ as.factor(Trial.x))
-pairs_data <- pairs(emm)
-pairs_data
-
-holddf <- subset(finalEat, finalEat$Species.x == "CM")
-mod <- glm(holddf$proportion.eaten ~ as.factor(holddf$Trial.x))
-summary(mod)
-emm <- emmeans(mod, ~ as.factor(Trial.x))
-pairs_data <- pairs(emm)
-pairs_data
-
-holddf <- subset(finalEat, finalEat$Species.x == "HS")
-mod <- glm(holddf$proportion.eaten ~ as.factor(holddf$Trial.x))
-summary(mod)
-emm <- emmeans(mod, ~ as.factor(Trial.x))
-pairs_data <- pairs(emm)
-pairs_data
-```
-
 ### Regraphing Hemi and Carcinus without those who didn't eat (prediction of molt)
 
 ```{R, echo=FALSE,results='hide',fig.keep='all'}
 summary_df <- EatDF %>%
-  group_by(Species.x, Trial.x, Period, still_eating) %>%
+  group_by(Species.x, Temperature, Period, still_eating) %>%
   summarise(
     mean = mean(proportion.eaten),
     se = sd(proportion.eaten) / sqrt(n())
   )
 summary_df <- subset(summary_df, summary_df$still_eating == "NO")
 
-ggplot(summary_df, aes(x = as.numeric(Trial.x), y = mean, color = Species.x)) + geom_point(position = position_dodge(width = 0.3))+
+ggplot(summary_df, aes(x = as.numeric(Temperature), y = mean, color = Species.x)) + geom_point(position = position_dodge(width = 0.3))+
   scale_color_manual(values = c("HS" = "darkred",
                                  "CM" = "darkgreen",
                                  "CI" = "darkorange"))+
