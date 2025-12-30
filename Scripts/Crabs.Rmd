@@ -45,6 +45,11 @@ library(dplyr)
 library(emmeans)
 library(knitr)
 library(brglm)
+library(glmmTMB)
+library(DHARMa)
+library(MuMIn)
+library(glmm)
+library(lmerTest)
 setwd("/Users/chanceyan/Documents/R/ThesisCrab/Data")
 crabdata <- read.csv("Feeding.csv", h=T, stringsAsFactors = FALSE)
 death <- read.csv("DeathCount.csv", h=T, stringsAsFactors = FALSE)
@@ -643,6 +648,152 @@ pairs(emm)
 ### The Big Question: Are there differences in consumption rate across different species and temperature?
 
 ```{R, echo=FALSE,results='hide',fig.keep='all'}
+#I'm interested in understanding differences in proportion consumed across species and temperature. The period may also be a factor that affects proportion comsumed, so first I'll check if it does have an affect for proportion consumed.
+#To check for differences across period, we'll check within trial and species
+
+#CI--------------------------------------------------------------------------
+
+#Gamma distribution with inflated 0 -> model fits well and says NO DIFFERENCE between periods
+censorsub <- subset(censor, censor$Species.x == "CI" & Temperature == 18)
+hist(censorsub$proportion.eaten)
+ZIglm <- glmmTMB(proportion.eaten ~ as.factor(Period), data = censorsub, ziformula = ~as.factor(Period), family = ziGamma((link= "inverse")))
+ZIglm.resids <- simulateResiduals(ZIglm)
+plot(ZIglm.resids)
+summary(ZIglm)
+
+#normal distribution with inflated 0 -> model fits well and says there is a DIFFERENCE between the periods
+censorsub <- subset(censor, censor$Species.x == "CI" & Temperature == 20)
+hist(censorsub$proportion.eaten)
+ZIglm <- glmmTMB(proportion.eaten ~ as.factor(Period), data = censorsub, ziformula = ~as.factor(Period))
+ZIglm.resids <- simulateResiduals(ZIglm)
+plot(ZIglm.resids)
+summary(ZIglm)
+
+#poor fit for zero inflated, good fit for normal GLM (distribution is more normal). NO DIFFERENCE found in either model
+censorsub <- subset(censor, censor$Species.x == "CI" & Temperature == 22)
+hist(censorsub$proportion.eaten)
+ZIglm <- glmmTMB(proportion.eaten ~ as.factor(Period), data = censorsub, ziformula = ~as.factor(Period))
+ZIglm.resids <- simulateResiduals(ZIglm)
+plot(ZIglm.resids)
+summary(ZIglm)
+
+mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
+plot(mod)
+summary(mod)
+
+#Model is a good fit, NO DIFFERENCE between periods
+censorsub <- subset(censor, censor$Species.x == "CI" & Temperature == 24)
+hist(censorsub$proportion.eaten)
+ZIglm <- glmmTMB(proportion.eaten ~ as.factor(Period), data = censorsub, ziformula = ~as.factor(Period), family = ziGamma((link= "inverse")))
+ZIglm.resids <- simulateResiduals(ZIglm)
+plot(ZIglm.resids)
+summary(ZIglm)
+
+#good fit, NO DIFFERENCE between periods
+censorsub <- subset(censor, censor$Species.x == "CI" & Temperature == 26)
+hist(censorsub$proportion.eaten)
+ZIglm <- glmmTMB(proportion.eaten ~ as.factor(Period), data = censorsub, ziformula = ~as.factor(Period), family = ziGamma((link= "inverse")))
+ZIglm.resids <- simulateResiduals(ZIglm)
+plot(ZIglm.resids)
+summary(ZIglm)
+
+#CM-----------------------------------------------------------------------------
+
+#normal distribution, fitting a normal GLM. 
+#good fit, NO DIFFERENCES between periods
+censorsub <- subset(censor, censor$Species.x == "CM" & Temperature == 18)
+hist(censorsub$proportion.eaten)
+mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
+plot(mod)
+summary(mod)
+
+#okay fit, NO DIFFERENCES between periods
+censorsub <- subset(censor, censor$Species.x == "CM" & Temperature == 20)
+hist(censorsub$proportion.eaten)
+mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub, family = Gamma(link = "inverse"))
+plot(mod)
+summary(mod)
+
+#good fit, NO DIFFERENCES between periods
+censorsub <- subset(censor, censor$Species.x == "CM" & Temperature == 22)
+hist(censorsub$proportion.eaten)
+mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
+plot(mod)
+summary(mod)
+
+#good fit, there are DIFFERENCES between periods
+censorsub <- subset(censor, censor$Species.x == "CM" & Temperature == 24)
+hist(censorsub$proportion.eaten)
+mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
+plot(mod)
+summary(mod)
+
+#good fit, NO DIFFERENCES between periods
+censorsub <- subset(censor, censor$Species.x == "CM" & Temperature == 26)
+hist(censorsub$proportion.eaten)
+mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
+plot(mod)
+summary(mod)
+
+#HS----------------------------------------------------------------------------
+
+#both normal GLM, Gamma GLM, ZI Gamma (best fitting model) say NO DIFFERENCES
+censorsub <- subset(censor, censor$Species.x == "HS" & Temperature == 18)
+hist(censorsub$proportion.eaten)
+censorsub$proportion.eaten <- ifelse(censorsub$proportion.eaten <= 0, .001, censorsub$proportion.eaten)
+mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub, family = Gamma(link = "inverse"))
+plot(mod)
+summary(mod)
+
+censorsub <- subset(censor, censor$Species.x == "HS" & Temperature == 18)
+hist(censorsub$proportion.eaten)
+ZIglm <- glmmTMB(proportion.eaten ~ as.factor(Period), data = censorsub, ziformula = ~as.factor(Period), family = ziGamma((link= "inverse")))
+ZIglm.resids <- simulateResiduals(ZIglm)
+plot(ZIglm.resids)
+summary(ZIglm)
+
+#good fit, there is a DIFFERENCE between periods
+censorsub <- subset(censor, censor$Species.x == "HS" & Temperature == 20)
+hist(censorsub$proportion.eaten)
+mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
+plot(mod)
+summary(mod)
+
+#good fit, There is NO DIFFERENCE between periods
+censorsub <- subset(censor, censor$Species.x == "HS" & Temperature == 22)
+hist(censorsub$proportion.eaten)
+mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
+plot(mod)
+summary(mod)
+
+#good fit, there is a DIFFERENCE between periods
+censorsub <- subset(censor, censor$Species.x == "HS" & Temperature == 24)
+hist(censorsub$proportion.eaten)
+mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
+plot(mod)
+summary(mod)
+
+#good fit, there is a DIFFERENCE between periods
+censorsub <- subset(censor, censor$Species.x == "HS" & Temperature == 26)
+hist(censorsub$proportion.eaten)
+mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub, family = Gamma(link = "inverse"))
+plot(mod)
+summary(mod)
+
+#PERIOD DIFFERENCES RESULTS------------------------------------------------------------------
+
+#for CI, the only temperature treatment where there were differences between periods was temperature treatment 20
+#for CM, the only differences were in temperature treatment 24
+#for HS, temperature treatment 20, 24, 26 had differences in periods
+
+#the rest of the temperatures were not different between periods
+#Since there are differences between periods, but I am not interested in understanding how consumption changes over periods - I will include it in the model as a random effect
+
+#Modeling---------------------------------------------------------------
+
+#In the model, I will include, Species and Temperature and use Period as a random effect
+#Exploring the data first.
+
 #only accounting for final week of trial
 finalEatCensor <- subset(censor, censor$WeekNum == 3)
 
@@ -687,7 +838,234 @@ ggplot(summary_df_inclusive, aes(x = as.numeric(Temperature), y = mean, color = 
 #Little to no difference between censor and inclusive model.
 #continue as usual with censor model since it's safer
 
-#WHERE I'LL LEAVE OFF - MODELING BIG QUESTION.
+#proportion eaten is super skewed when graphed out. Let's take a look at each species...
+hist(finalEatCensor$proportion.eaten)
+
+censorsub <- subset(finalEatCensor, finalEatCensor$Species.x == "CI")
+#zero-inflated
+hist(censorsub$proportion.eaten)
+censorsub <- subset(finalEatCensor, finalEatCensor$Species.x == "CM")
+#normal
+hist(censorsub$proportion.eaten)
+censorsub <- subset(finalEatCensor, finalEatCensor$Species.x == "HS")
+#slight right skew
+hist(censorsub$proportion.eaten)
+
+#we can try graphing with Gamma family or even zero inflated to see if it'll work.
+#we'll also dredge to get the best model.
+
+finalEatCensor$Period <- factor(finalEatCensor$Period)
+
+#GLM gamma and normal have poor fits
+all.mod.glm.normal <- lmer(proportion.eaten ~ Species.x*Temperature + (1|Period), data = finalEatCensor, na.action = "na.fail")
+dredge(all.mod.glm.normal)
+best.mod.glm.normal <- glmer(proportion.eaten ~ Species.x+ (1|Period), data = finalEatCensor, na.action = "na.fail")
+plot(best.mod.glm.normal)
+qqnorm(residuals(best.mod.glm.normal))
+
+#Trying zero-inflated gamma model
+all.ZIglm <- glmmTMB(proportion.eaten ~ Species.x*Temperature + (1|Period), data = finalEatCensor, ziformula = ~1, family = ziGamma((link= "inverse")), na.action = "na.fail")
+dredge(all.ZIglm)
+ZIglm.resids <- simulateResiduals(all.ZIglm)
+
+#poor fit
+plot(ZIglm.resids)
+summary(ZIglm)
+
+#trying zero-inflated Gamma model
+all.ZIglm <- glmmTMB(proportion.eaten ~ Species.x*Temperature + (1|Period), data = finalEatCensor, ziformula = ~1, family = ziGamma((link= "inverse")), na.action = "na.fail")
+dredge(all.ZIglm)
+ZIglm.resids <- simulateResiduals(all.ZIglm)
+plot(ZIglm.resids)
+summary(ZIglm)
+
+#trying zero-inflated normal model
+all.ZIglm <- glmmTMB(proportion.eaten ~ Species.x*Temperature + (1|Period), data = finalEatCensor, ziformula = ~1, na.action = "na.fail")
+dredge(all.ZIglm)
+ZIglm.resids <- simulateResiduals(all.ZIglm)
+plot(ZIglm.resids)
+summary(ZIglm)
+
+censor_nozero <- finalEatCensor
+censor_nozero$proportion.eaten <- ifelse(finalEatCensor$proportion.eaten <= 0, 0.001, finalEatCensor$proportion.eaten)
+m_hurdle <- glmmTMB(
+  proportion.eaten ~ Species.x * Temperature,
+  data = censor_nozero,
+  family = Gamma(link = "inverse"),
+  ziformula = ~0,          # no ZI
+  dispformula = ~1
+)
+ZIglm.resids <- simulateResiduals(m_hurdle)
+plot(ZIglm.resids)
+summary(ZIglm)
+
+m_hurdle <- glmmTMB(
+  proportion.eaten ~ Species.x * Temperature,
+  data = censor_nozero,
+  family = Gamma(link = "log"),
+  ziformula = ~0,          # no ZI
+  dispformula = ~1
+)
+ZIglm.resids <- simulateResiduals(m_hurdle)
+plot(ZIglm.resids)
+summary(m_hurdle)
+
+m_tweedie <- glmmTMB(
+  proportion.eaten ~ Species.x * Temperature,
+  data = finalEatCensor,
+  family = tweedie(link = "log")
+)
+ZIglm.resids <- simulateResiduals(m_tweedie)
+plot(ZIglm.resids)
+summary(m_hurdle)
+
+#all models fail, let's sort by species then make comparisons across slope value
+
+#Rock crab - zero-inflated -----------------------------------------------------
+censorsub <- subset(finalEatCensor, finalEatCensor$Species.x == "CI")
+hist(censorsub$proportion.eaten)
+
+#model 6 and 10 come close
+ZIglm1 <- glmmTMB(proportion.eaten ~ Temperature*Period, data = censorsub, ziformula = ~1, family = ziGamma((link= "inverse")),na.action = "na.fail")
+ZIglm2 <- glmmTMB(proportion.eaten ~ Temperature + Period, data = censorsub, ziformula = ~1, family = ziGamma((link= "inverse")),na.action = "na.fail")
+ZIglm3 <- glmmTMB(proportion.eaten ~ Period, data = censorsub, ziformula = ~1, family = ziGamma((link= "inverse")),na.action = "na.fail")
+ZIglm4 <- glmmTMB(proportion.eaten ~ 1, data = censorsub, ziformula = ~1, family = ziGamma((link= "inverse")),na.action = "na.fail")
+ZIglm5 <- glmmTMB(proportion.eaten ~ Temperature, data = censorsub, ziformula = ~1, family = ziGamma((link= "inverse")),na.action = "na.fail")
+ZIglm6 <- glmmTMB(proportion.eaten ~ Temperature*Period, data = censorsub, ziformula = ~1,na.action = "na.fail")
+ZIglm7 <- glmmTMB(proportion.eaten ~ Temperature + Period, data = censorsub, ziformula = ~1,na.action = "na.fail")
+ZIglm8 <- glmmTMB(proportion.eaten ~ Period, data = censorsub, ziformula = ~1,na.action = "na.fail")
+ZIglm9 <- glmmTMB(proportion.eaten ~ 1, data = censorsub, ziformula = ~1,na.action = "na.fail")
+ZIglm10 <- glmmTMB(proportion.eaten ~ Temperature, data = censorsub, ziformula = ~1,na.action = "na.fail")
+ZIglm11 <- glmmTMB(proportion.eaten ~ Temperature*Period, data = censorsub, ziformula = ~1, family = ziGamma((link= "log")),na.action = "na.fail")
+ZIglm12 <- glmmTMB(proportion.eaten ~ Temperature + Period, data = censorsub, ziformula = ~1, family = ziGamma((link= "log")),na.action = "na.fail")
+ZIglm13 <- glmmTMB(proportion.eaten ~ Period, data = censorsub, ziformula = ~1, family = ziGamma((link= "log")),na.action = "na.fail")
+ZIglm14 <- glmmTMB(proportion.eaten ~ 1, data = censorsub, ziformula = ~1, family = ziGamma((link= "log")),na.action = "na.fail")
+ZIglm15 <- glmmTMB(proportion.eaten ~ Temperature, data = censorsub, ziformula = ~1, family = ziGamma((link= "log")),na.action = "na.fail")
+
+ZIglm16 <- glmmTMB(proportion.eaten ~ Temperature*Period, data = censorsub, ziformula = ~Temperature, family = ziGamma((link= "inverse")),na.action = "na.fail")
+ZIglm17 <- glmmTMB(proportion.eaten ~ Temperature + Period, data = censorsub, ziformula = ~Temperature, family = ziGamma((link= "inverse")),na.action = "na.fail")
+ZIglm18 <- glmmTMB(proportion.eaten ~ Period, data = censorsub, ziformula = ~Temperature, family = ziGamma((link= "inverse")),na.action = "na.fail")
+ZIglm19 <- glmmTMB(proportion.eaten ~ 1, data = censorsub, ziformula = ~Temperature, family = ziGamma((link= "inverse")),na.action = "na.fail")
+ZIglm20 <- glmmTMB(proportion.eaten ~ Temperature, data = censorsub, ziformula = ~Temperature, family = ziGamma((link= "inverse")),na.action = "na.fail")
+ZIglm21 <- glmmTMB(proportion.eaten ~ Temperature*Period, data = censorsub, ziformula = ~Temperature,na.action = "na.fail")
+ZIglm22 <- glmmTMB(proportion.eaten ~ Temperature + Period, data = censorsub, ziformula = ~Temperature,na.action = "na.fail")
+ZIglm23 <- glmmTMB(proportion.eaten ~ Period, data = censorsub, ziformula = ~Temperature,na.action = "na.fail")
+ZIglm24 <- glmmTMB(proportion.eaten ~ 1, data = censorsub, ziformula = ~1,na.action = "na.fail")
+ZIglm25 <- glmmTMB(proportion.eaten ~ Temperature, data = censorsub, ziformula = ~Temperature,na.action = "na.fail")
+ZIglm26 <- glmmTMB(proportion.eaten ~ Temperature*Period, data = censorsub, ziformula = ~Temperature, family = ziGamma((link= "log")),na.action = "na.fail")
+ZIglm27 <- glmmTMB(proportion.eaten ~ Temperature + Period, data = censorsub, ziformula = ~Temperature, family = ziGamma((link= "log")),na.action = "na.fail")
+ZIglm28 <- glmmTMB(proportion.eaten ~ Period, data = censorsub, ziformula = ~Temperature, family = ziGamma((link= "log")),na.action = "na.fail")
+ZIglm29 <- glmmTMB(proportion.eaten ~ 1, data = censorsub, ziformula = ~Temperature, family = ziGamma((link= "log")),na.action = "na.fail")
+ZIglm30 <- glmmTMB(proportion.eaten ~ Temperature, data = censorsub, ziformula = ~Temperature, family = ziGamma((link= "log")),na.action = "na.fail")
+
+#mod 6 and 8 are the best
+mod1 <- glm(proportion.eaten ~ Temperature*Period, data = censorsub)
+mod2 <- glm(proportion.eaten ~ Temperature + Period, data = censorsub)
+mod3 <- glm(proportion.eaten ~ Temperature, data = censorsub)
+mod4 <- glm(proportion.eaten ~ Period, data = censorsub)
+mod5 <- glm(proportion.eaten ~ 1, data = censorsub)
+censor_nozero <- censorsub
+censor_nozero$proportion.eaten <- ifelse(censor_nozero$proportion.eaten <= 0, 0.001, censor_nozero$proportion.eaten)
+mod6 <- glm(proportion.eaten ~ Temperature*Period, family = Gamma(link = "log"), data = censor_nozero)
+mod7 <- glm(proportion.eaten ~ Temperature + Period, family = Gamma(link = "log"), data = censor_nozero)
+mod8 <- glm(proportion.eaten ~ Temperature, family = Gamma(link = "log"), data = censor_nozero)
+mod9 <- glm(proportion.eaten ~ Period, family = Gamma(link = "log"), data = censor_nozero)
+mod10 <- glm(proportion.eaten ~ 1, family = Gamma(link = "log"), data = censor_nozero)
+mod11 <- glm(proportion.eaten ~ Temperature*Period, family = Gamma(link = "inverse"), data = censor_nozero)
+mod12 <- glm(proportion.eaten ~ Temperature + Period, family = Gamma(link = "inverse"), data = censor_nozero)
+mod13 <- glm(proportion.eaten ~ Temperature, family = Gamma(link = "inverse"), data = censor_nozero)
+mod14 <- glm(proportion.eaten ~ Period, family = Gamma(link = "inverse"), data = censor_nozero)
+mod15 <- glm(proportion.eaten ~ 1, family = Gamma(link = "inverse"), data = censor_nozero)
+
+AIC(ZIglm1, ZIglm2, ZIglm3, ZIglm4, ZIglm5, ZIglm6, ZIglm7, ZIglm8, ZIglm9, ZIglm10, ZIglm11, ZIglm12, ZIglm13, ZIglm14, ZIglm15, ZIglm16, ZIglm17, ZIglm18, ZIglm19, ZIglm20, ZIglm21, ZIglm22, ZIglm23, ZIglm24, ZIglm25, ZIglm26, ZIglm27, ZIglm28, ZIglm29, ZIglm30)
+AIC(mod1, mod2, mod3, mod4, mod5, mod6, mod7, mod8, mod9, mod10, mod11, mod12, mod13, mod14, mod15)
+
+#fit is poor among the top models that AIC spits back...
+best.glm.mod1 <- glm(proportion.eaten ~ Temperature*Period, family = Gamma(link = "log"), data = censor_nozero)
+best.glm.mod2 <- glm(proportion.eaten ~ Temperature, family = Gamma(link = "log"), data = censor_nozero)
+ZIglm.resids <- simulateResiduals(best.glm.mod1)
+plot(ZIglm.resids)
+ZIglm.resids <- simulateResiduals(best.glm.mod2)
+plot(ZIglm.resids)
+
+#models without gamma are ranked lower in AIC; however, they have 
+best.glm.mod3 <- glm(proportion.eaten ~ Temperature*Period, data = censor_nozero)
+best.glm.mod4 <- glm(proportion.eaten ~ Temperature, data = censor_nozero)
+par(mfrow = c(2,2))
+plot(best.glm.mod3)
+plot(best.glm.mod4)
+
+#model 2 fits well except for (what I assume) temperature 26 C - NaN produced all around for summaries, need an alternative
+best.ZI.mod1 <- glmmTMB(proportion.eaten ~ Temperature*Period, data = censorsub, ziformula = ~1,na.action = "na.fail")
+best.ZI.mod2 <- glmmTMB(proportion.eaten ~ Temperature, data = censorsub, ziformula = ~1,na.action = "na.fail")
+ZIglm.resids <- simulateResiduals(best.mod1)
+plot(ZIglm.resids)
+ZIglm.resids <- simulateResiduals(best.mod2)
+plot(ZIglm.resids)
+
+ZIglm.resids <- simulateResiduals(ZIglm10)
+plot(ZIglm.resids)
+summary(ZIglm10)
+#Green crab - Normal -----------------------------------------------------------
+censorsub <- subset(finalEatCensor, finalEatCensor$Species.x == "CM")
+hist(censorsub$proportion.eaten)
+
+#tie between 3 models
+all.mod <- glm(proportion.eaten ~ Temperature*Period, data = censorsub, na.action = "na.fail")
+dredge(all.mod)
+
+#model 3 is the best
+censorsub$proportion.eaten <- ifelse(censorsub$proportion.eaten <= 0, .001, censorsub$proportion.eaten)
+all.mod.mixed1 <- glm(proportion.eaten ~ Temperature, family = Gamma(link = "inverse"), data = censorsub, na.action = "na.fail")
+all.mod.mixed2 <- glm(proportion.eaten ~ Temperature, family = Gamma(link = "log"), data = censorsub, na.action = "na.fail")
+all.mod.mixed3 <- glm(proportion.eaten ~ Temperature, data = censorsub, na.action = "na.fail")
+all.mod.mixed4 <- glm(proportion.eaten ~ Temperature*Period, family = Gamma(link = "inverse"), data = censorsub, na.action = "na.fail")
+all.mod.mixed5 <- glm(proportion.eaten ~ Temperature*Period, family = Gamma(link = "log"), data = censorsub, na.action = "na.fail")
+all.mod.mixed6 <- glm(proportion.eaten ~ Temperature*Period, data = censorsub, na.action = "na.fail")
+all.mod.mixed7 <- glm(proportion.eaten ~ Temperature+Period, family = Gamma(link = "inverse"), data = censorsub, na.action = "na.fail")
+all.mod.mixed8 <- glm(proportion.eaten ~ Temperature+Period, family = Gamma(link = "log"), data = censorsub, na.action = "na.fail")
+all.mod.mixed9 <- glm(proportion.eaten ~ Temperature+Period, data = censorsub, na.action = "na.fail")
+AIC(all.mod.mixed2, all.mod.mixed1, all.mod.mixed3, all.mod.mixed4, all.mod.mixed5, all.mod.mixed6, all.mod.mixed7, all.mod.mixed8, all.mod.mixed9)
+
+#model 3 is a good fit!
+par(mfrow = c(2,2))
+plot(all.mod.mixed3)
+plot(fitted(all.mod.mixed3), residuals(all.mod.mixed3))
+abline(h=0, col="red")
+hist(residuals(all.mod.mixed3))
+
+summary(all.mod.mixed3)
+
+#Shore crab - skew/normal ------------------------------------------------------
+censorsub <- subset(finalEatCensor, finalEatCensor$Species.x == "HS")
+hist(censorsub$proportion.eaten)
+
+#dredge function returns that period is not important to the model, so I'll leave it out
+all.mod.mixed <- glm(proportion.eaten ~ Temperature*Period, data = censorsub, na.action = "na.fail")
+dredge(all.mod.mixed)
+
+censorsub$proportion.eaten <- ifelse(censorsub$proportion.eaten <= 0, .001, censorsub$proportion.eaten)
+#model 3 is the best and the glm fits well
+all.mod.mixed1 <- glm(proportion.eaten ~ Temperature, family = Gamma(link = "inverse"), data = censorsub, na.action = "na.fail")
+all.mod.mixed2 <- glm(proportion.eaten ~ Temperature, family = Gamma(link = "log"), data = censorsub, na.action = "na.fail")
+all.mod.mixed3 <- glm(proportion.eaten ~ Temperature, data = censorsub, na.action = "na.fail")
+all.mod.mixed4 <- glm(proportion.eaten ~ Temperature*Period, family = Gamma(link = "inverse"), data = censorsub, na.action = "na.fail")
+all.mod.mixed5 <- glm(proportion.eaten ~ Temperature*Period, family = Gamma(link = "log"), data = censorsub, na.action = "na.fail")
+all.mod.mixed6 <- glm(proportion.eaten ~ Temperature*Period, data = censorsub, na.action = "na.fail")
+AIC(all.mod.mixed1, all.mod.mixed2, all.mod.mixed3, all.mod.mixed4, all.mod.mixed5, all.mod.mixed6)
+
+#best AIC model and great fit
+par(mfrow = c(2,2))
+plot(all.mod.mixed3)
+plot(fitted(all.mod.mixed3), residuals(all.mod.mixed3))
+abline(h=0, col="red")
+hist(residuals(all.mod.mixed3))
+
+#both indicate temperature slope is non 0
+summary(all.mod.mixed3)
+
+
+
 
 ```
 
