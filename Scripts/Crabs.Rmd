@@ -1,11 +1,14 @@
 ---
-output: html_document
-editor_options: 
+output:
+  word_document: default
+  html_document: default
+editor_options:
   chunk_output_type: console
 ---
+
 # Chance's Second Thesis Chapter: Understand Thermal Niche from Consumption TPCs
 
-Made by Chance Yan Last Edit:
+Made by Chance Yan Last Edit: 1/2/26
 
 **Question:** Is there thermal niche overlap or complementary in consumption among the predatory crabs of the Gulf of Maine?
 
@@ -15,9 +18,9 @@ Made by Chance Yan Last Edit:
 
 **Predictions:**
 
--   Prediction 1: The asian shore crab will have the highest consumption TPC/thermal niche compared to green crabs and cancer crabs. Followed by green crabs having the second highest TPC/thermal niche. Meanwhile, cancer crabs (*Cancer borealis* preferred, but *Cancer irroratus* backup - more on this later)
+-   Prediction 1: The Asian shore crab will have the highest consumption TPC/thermal niche compared to green crabs and cancer crabs. Followed by green crabs having the second highest TPC/thermal niche. Meanwhile, cancer crabs (*Cancer borealis* preferred, but *Cancer irroratus* backup - more on this later)
 
--   Prediction 2:There is no difference in consumption TPC between green crabs, asian shore crabs, and cancer crabs. 
+-   Prediction 2:There is no difference in consumption TPC between green crabs, Asian shore crabs, and cancer crabs. 
 
 -   Prediction 3: There is some overlap between 2 of the species, but not the last one. 
 
@@ -29,9 +32,7 @@ Made by Chance Yan Last Edit:
 
 **Methods**
 
-Crabs were collected and brought into GMS via SCUBA, intertidally, or trapping. Only males with 2 or less missing legs were used in the study. Upon entry into the lab, crabs were weight and carapace length was measured.
-Crabs were placed into 5 gallon buckets in a wet table with a recirculating seawater system. Each were supplied with a water line and air line. There were two wet tables for one system which was set to one temperature treatment. The temperature treatments were
-18, 20, 22, 24, and 26 degrees celcius.
+Crabs were collected and brought into GMS via SCUBA, intertidally, or trapping. Only males with 2 or less missing legs were used in the study. Upon entry into the lab, crabs were weight and carapace length was measured. Crabs were placed into 5 gallon buckets in a wet table with a recirculating seawater system. Each were supplied with a water line and air line. There were two wet tables for one system which was set to one temperature treatment. The temperature treatments were 18, 20, 22, 24, and 26 degrees Celcius.
 
 Crabs were fed 3 times a week with clam and squid in an alternating pattern. Crabs were acclimated for the trial temperature for two weeks and fed an additional 3 times for the feeding trial.
 
@@ -63,12 +64,12 @@ checkout <- read.csv("CheckOut.csv", h=T, stringsAsFactors = FALSE)
 
 We need to clean up the data first to use it. What I did...
 
-NOTE: "feeding points" refer to a measurement of feeding. Therefore we have multiple feeding points from a single individual crab. 
+NOTE: "feeding points" refer to a measurement of feeding. Therefore we have multiple feeding points from a single individual crab.
 
 -   Removed feeding points that used mussels and mackerel. We fed two days total of mussels and mackerel to find out that it was too difficult to measure accurately. Afterwards, we switched to Clam and Squid in an alternating pattern
 -   I then removed those who molted (removed as in removed all feeding points that individual contributed to the dataset) as molting has been shown in the literature to affect feeding rate.
 -   I removed the first week and first period of feeding from Trial 18 and 22 since they were fed two days in a row (accidentally + understanding methods). They still had 3 weeks of feeding (2 weeks of acclimation similar to the other trials).
--   I removed feeding points for those who ate everything that we fed them. This is because it's possible they could have eaten more and the point becomes inaccurate. 
+-   I removed feeding points for those who ate everything that we fed them. This is because it's possible they could have eaten more and the point becomes inaccurate.
 -   Very rarely (around 4-5 times total), food would be found floating in the bucket after waiting the feeding period. I have removed these feeding points as well because the crab couldn't get to the food and eat for the feeding period and therefore the point cannot be trusted
 -   The rest of the code is marking individuals if they've eaten or not, still eaten, making extra variables so that further analyses are easier.
 
@@ -180,24 +181,17 @@ all$WeekNum <- ifelse((all$Temperature == 22 & all$WeekNum == 4 & all$Period == 
 all$ID <- ifelse(grepl("RE", all$Notes.x), paste(all$ID, "R"), all$ID)
 
 #husbandry sheet prep
-husbandry <- subset(husbandry, husbandry$Trial != "NONE")
+husbandry <- subset(husbandry, husbandry$Temperature != "NONE")       
 ```
 
 We have some decisions to make, but we'll boil it down to the all-inclusive model vs the censoring model
 
-All-inclusive model: 
--Add in all those who died as zeros and even beyond after they died they still remain as 0's. 
--Also keep in replacement data.
--Keep crabs who died as is in the data set
+All-inclusive model: -Add in all those who died as zeros and even beyond after they died they still remain as 0's. -Also keep in replacement data. -Keep crabs who died as is in the data set
 
-Censoring model: 
--Remove feeding points from all those who died and those who were replacement.
--Turn all the feeding points of those who did not eat to 0
--Remove dead individual
+Censoring model: -Remove feeding points from all those who died and those who were replacement. -Turn all the feeding points of those who did not eat to 0 -Remove dead individual
 
-ALL-INCLUSIVE MODEL:
--Includes all those who died, data points after they've died becomes 0
--Incudes those that were replaced as well
+ALL-INCLUSIVE MODEL: -Includes all those who died, data points after they've died becomes 0 -Incudes those that were replaced as well
+
 ```{R}
 inclusive <- all
 
@@ -205,9 +199,8 @@ inclusive$proportion.eaten <- inclusive$amount.eaten / inclusive$WW
 inclusive <- subset(inclusive, !is.na(inclusive$proportion.eaten))
 ```
 
-CENSORING MODEL:
--Removes those who died completely and those who were used to be replaced. 
--Sets those who didn't eat to 0 (for feeding points)
+CENSORING MODEL: -Removes those who died completely and those who were used to be replaced. -Sets those who didn't eat to 0 (for feeding points)
+
 ```{R}
 censor <- all
 
@@ -244,24 +237,33 @@ kable(rbind(Inclusive = b, Censor = e), caption = "Inclusive on top, Censor on t
 ### Death OR Alive: Are there differences in the amount of alive/dead individuals as temperature increases? Which species out of the three is this relationship the strongest?
 
 What I did:
--I added the extras on the master dataframe which contains all individuals who were ever in the systems that are included in the project
--I then created two exploratory graphs to represent how the data looks in general - NOTE - a good model should show that there is an DECREASe in alive individuals as temperature increases for the Rock Crab. Greeb crabs and shore crabs should remain relatively flat (no increase death with temperatures)
--To account for the separated data I will use a bias reduced GLM. Following code from: https://bscheng.com/2016/12/11/modeling-completely-separated-data-in-r/
+
+-I added the extras on the master data frame which contains all individuals who were ever in the systems that are included in the project
+
+-I then created two exploratory graphs to represent how the data looks in general
+
+\- NOTE - a good model should show that there is a decrease in alive individuals as temperature increases for the Rock Crab. Green crabs and shore crabs should remain relatively flat (no increase death with temperatures)
+
+-To account for the separated data I will use a bias reduced GLM. Following code from: <https://bscheng.com/2016/12/11/modeling-completely-separated-data-in-r/>
+
 -I then fit the model to an all mod (all explanatory variables added with interactions). Then dredged the model to see which model is the "best"
+
 -The best model came back as one that included temperature and Species (all explanatory variables); however, without interactions
--Best model <- dead ~ Temperature(numeric) + Species
+
+-Best model \<- dead \~ Temperature(numeric) + Species
+
 -This best model summary tells us there are differences in the INTERCEPTS between green crabs/shore crabs and rock crabs. The model also indicates that there is a slope that is negative for ALL species. This is because we did not include an interaction (including an interaction makes the model find no differences and AIC finds no interaction model a worse one)
+
 -Since it seems obvious that rock crabs are doing worse than green crabs and shore crabs (a little disappointed it didn't pick it up), I modeled with just rock crab data
--I modeled just rock crab data and found that there was a signficantly negative slope as temperature increases.
 
-Summary: I modeled dead and alive crabs using a bias reduced GLM. After dredging the best model was a full addivite model (temperature and species); however, the model dictataes all species have the same slope (decrease of alive individuals across temperature) and therefore I modeled just rock crabs to see a negative slope (decrease in alive individuals)
+-I modeled just rock crab data and found that there was a significantly negative slope as temperature increases.
 
-```{R}
+Summary: I modeled dead and alive crabs using a bias reduced GLM. After dredging the best model was a full additive model (temperature and species); however, the model dictates all species have the same slope (decrease of alive individuals across temperature) and therefore I modeled just rock crabs to see a negative slope (decrease in alive individuals)
+
+```{R echo=FALSE, warning=FALSE, message = FALSE}
+original_master <- master
 #parsing between those who died during the experiment and those who lived
 master$dead <- ifelse(master$ID %in% deathMeta$ID, 0, 1)	
-
-#changing name from Trial to Temperature to avoid confusion
-names(master)[names(master) == "Trial"] <- "Temperature"
 
 #addition of extras
 {
@@ -307,9 +309,15 @@ ggplot(mastergraph, aes(x = Temperature, y = dead, color = dead)) + geom_point(p
   xlab("Temperature")+
   ylab("Count")+
   facet_wrap(~Species)+
-  ggtitle("The counts of dead vs alive individuals in each trial for each species")+
+  ggtitle("The counts of dead vs alive individuals")+
   scale_color_manual(values = c("0" = "darkred", "1" = "darkgreen"))
 
+```
+
+After the exploratory graphs, we should have a model that suggests no change across species and an increase in rock crab deaths as temperature increases.
+I'll try dredging the full model with Temperature and species. This is the best model summary output.
+
+```{R echo=FALSE, warning=FALSE, message = FALSE}
 #using 
 all.mod <- brglm(dead ~ Temperature*Species, family = binomial, data = master, na.action = "na.fail")
 dredge(all.mod, rank = "AICc")
@@ -329,11 +337,17 @@ ggplot(master, aes(x = Temperature, y = dead, color = Species)) +
   geom_point(position = position_jitter(height = 0.05), alpha = 0.6) +
   geom_line(data = newdat, aes(x = Temperature, y = pred, color = Species), linewidth = 1) +
   scale_y_continuous(limits = c(0, 1)) + 
-  ggtitle("The number of dead (0) vs alive (1) crabs across 5 different temperatures") + 
+  ggtitle("Predicted number of dead (0) vs alive (1) crabs") + 
   scale_color_manual(values = c("Carcinus" = "darkgreen",
                                 "Hemigrapsus" = "darkred",
                                 "Irroratus" = "darkorange"))
+```
 
+That model doesn't really describe that the hemigrapsus and green crab rate is 0. The general temperature variable is across the whole dataset and not species specific.
+I can tell based off the raw data that there are only two death points for green crabs and zero for hemigrapsus. Therefore it might not be necessary to model them. Instead, here I'll just model rock crabs.
+The following is the best rock crab model summary and the predicted values
+
+```{R echo=FALSE, warning=FALSE, message = FALSE, fig.width=7, fig.height=5}
 #just Cancer irroratus
 holddf <- subset(master, master$Species == "Irroratus")
 all.mod <- brglm(dead ~ Temperature, family = binomial, data = holddf, na.action = "na.fail")
@@ -349,40 +363,58 @@ ggplot(holddf, aes(x = Temperature, y = dead)) +
   geom_point(position = position_jitter(height = 0.05), alpha = 0.6) +
   geom_line(data = newdat, aes(x = Temperature, y = pred), color = "darkorange", linewidth = 1) +
   scale_y_continuous(limits = c(0, 1)) + 
-  ggtitle("The number of dead (0) vs alive (1) Atlantic rock crabs across 5 different temperatures")
+  ggtitle("Predicted number of dead (0) vs alive (1) Atlantic rock crabs")
 ```
 
 ### Acclimation: Are there differences in proportion eaten across week number for each species, temperature regime and time period?
 
--I started by graphing what we would expect the acclimation models to suggest.
--If acclimation worked, we should expect an increase or decrease in the first week to the second then it should hit a flat line (indicating no change in consumption) going from week 2 to 3. That would indicate 2 weeks of acclimation is sufficient for measuring consumption
--I summarized the mean and standard error for each species, temperature and period then graphed the proportion consumed over week number to test if the acclimation worked. I also compared these graphs between the censor model and inclusive model
--I found very little differences (visually) between the inclusive and censor model
--It seems like there are very little differences between all weeks for rock crabs and green crabs; however, we do see some differences in shore crabs between the week numbers. Hopefully our model reflects this.
--Off to modeling!
+#### Exploratory:
 
-Modeling Acclimation:
+-I started by graphing what we would expect the acclimation models to suggest.
+
+-If acclimation worked, we should expect an increase or decrease in the first week to the second then it should hit a flat line (indicating no change in consumption) going from week 2 to 3. That would indicate 2 weeks of acclimation is sufficient for measuring consumption
+
+-I summarized the mean and standard error for each species, temperature and period then graphed the proportion consumed over week number to test if the acclimation worked. I also compared these graphs between the censor model and inclusive model
+
+-I found very little differences (visually) between the inclusive and censor model
+
+-It seems like there are very little differences between all weeks for rock crabs and green crabs; however, we do see some differences in shore crabs between the week numbers. Hopefully our model reflects this.
+
+#### Modeling Acclimation:
+
 -Each species was modeled separately as we are only interested in if the acclimation time was sufficient (i.e. consumption rate is stable after two weeks of acclimation)
+
 -Further, each temperature was modeled independently of each other because we do not care about differences among different temperature treatments.
+
 -I started by graphing out response variables for each species. Green crabs and shore crabs seem to be relatively normal while rock crabs have some potential weirdness.
+
 -For each species, I tested which model worked best for temperature treatment 18 and then applied that model to the rest of the temperature treatments and checked for fit
 
-Model fits:
--Green crabs: Their response variable was mainly normal, so I started by using a GLM with a family of gaussian. After checking the diagnostics, the models seem to be a good fit across all temperature treatments
--Shore crabs: The previous steps were repeated and I found the model fit was ok for all the temperature treatments (family = gaussian)
--Rock crabs: The typically normal GLM did not fit well for these crabs. I tried other models such as Gamma; however, found poor fit in all. Even transforming the data did not work. I then decided to model it with zero-inflation as I noticed it in the graphs. Modeling with zero-inflation provided a strong fit for all temperature treatments; however, for temperature treatment 20 I fitted a zero-inflated gaussian model rather than a Gamma model (which are the rest) since the distribution of the response variable was normal and the model was a better fit then a Gamma for 20 C temperature treatment.
+#### Model Fits:
 
-Pairwise comparisons:
+-Green crabs: Their response variable was mainly normal, so I started by using a GLM with a family of gaussian. After checking the diagnostics, the models seem to be a good fit across all temperature treatments
+
+-Shore crabs: The previous steps were repeated and I found the model fit was ok for all the temperature treatments (family = gaussian)
+
+-Rock crabs: The typically normal GLM did not fit well for these crabs. I tried other models such as Gamma; however, found poor fit in all. Even transforming the data did not work. I then decided to model it with zero-inflation as I noticed in the graphs there was a large group surrounding zero. Modeling with zero-inflation provided a strong fit for all temperature treatments; however, for temperature treatment 20 I fitted a zero-inflated gaussian model rather than a Gamma model (which are the rest) since the distribution of the response variable was normal and the model was a better fit then a Gamma for 20 C temperature treatment.
+
+#### Pairwise comparisons:
+
 -I then made pairwise comparisons between each week number for all species and temperature treatments.
+
 -Reminder: We are looking for differences between week number 2 and 3. If there are no differences this will indicate consumption has flattened and stablized. If not, then feeding may potentially continue to increase or decrease.
+
 -Green crabs: No differences between any groups
+
 -Shore crabs: some temperature treatments have differences between groups (importantly between week 2 and 3). The only temperature treatments where we see differences between week 2 and 3 are temperature treatments 22C and 24C
+
 Additional note for shore crabs: Both differences between week 2 and 3 for temperature treatments 22 C and 24 C are always decrease from week 2 to 3 (week 3 is always smaller amount) - as noted before this may be a saturation effect. Crabs are eating more than enough and therefore will opt out of feeding more in future feedings.
+
 -Rock crabs: No differences between week 2 and 3 for all temperature treatments, but some have differences between week 1 and 3
 
-TLDR: I first made exploratory graphs, then modeled each species and temperature treatment separately. I used GLMs for shore and green crabs while I used zero-inflated models for rock crabs. All models fit well and the only difference between week 2 and 3 consumption rate lies within temperature treamtment 22C and 24 C for shore crabs.
+TLDR: I first made exploratory graphs, then modeled each species and temperature treatment separately. I used GLMs for shore and green crabs while I used zero-inflated models for rock crabs. All models fit well and the only difference between week 2 and 3 consumption rate lies within temperature treatment 22C and 24 C for shore crabs.
 
-```{R echo = FALSE, warning = FALSE}
+```{R echo=FALSE, warning=FALSE, message = FALSE, fig.width=7, fig.height=5}
 summary_inclusive <- inclusive %>%
   group_by(Species.x, Temperature, Period, WeekNum) %>%
   summarise(
@@ -432,12 +464,11 @@ ggplot(summary_censor, aes(x = as.numeric(WeekNum), y = mean, color = SpeciesPer
 #going forward, I'll do data exploration with the censor model since the graphs looked very similar.
 
 #both response variables are skewed
-hist(censor$proportion.eaten)
-hist(inclusive$proportion.eaten)
+hist(censor$proportion.eaten, main = "Distribution of the censor model", xlab = "Proportion Eaten")
+hist(inclusive$proportion.eaten, main = "Distribution of the inclusive model", xlab = "Proportion Eaten")
 
 #"We assume that the error terms, and the observations, within each group come from normally distributed populations ... in each group"
 #I need to test normality within group
-
 ggplot(censor, aes(y = proportion.eaten, fill = Species.x)) + geom_boxplot() + 
   scale_fill_manual(values = c("CI" = "darkorange",
                     "CM" = "darkgreen",
@@ -457,76 +488,81 @@ ggplot(inclusive, aes(x = proportion.eaten, fill= Species.x)) + geom_histogram()
   scale_fill_manual(values = c("CI" = "darkorange",
                     "CM" = "darkgreen",
                     "HS" = "darkred")) + facet_wrap(~Species.x, scales = "free")+ ggtitle("Histogram of Inclusive Model")
+```
 
-#I'll be modeling each species independently since I am interested in how each species responds on their own and not differences between other species (I want to know if acclimation worked or not so it doesn't involve other species)
-#Further, I want to understand how each week number differs WITHIN temperature. Therefore, it is probably best to model each temperature on their own
-#NOTE: Temperature is being taken as a factor here since we only care about within temperature treatments!
-#I'll only be using the censor model since it lacks negatives and it's easier to handle. Also, preliminary graphs suggests data is very similar and both aren't needed for all comparisons (I will compare final models)
-#let's begin with green crabs since they are normal and "easier" to handle
+Both models look similar so I'll do analysis exploration with the censor model and compare towards the end.
 
-#week number will be used as a factor since we care about direct differences between week 1 and 3 not just if it increases across the weeks
-#we'll use a GLM and add, Week number as the only explanatory variable. We'll model specific temperatures and species on their own.
+I'll be modeling each species independently since I am interested in how each species responds on their own and not differences between other species (I want to know if acclimation worked or not so it doesn't involve other species)
+Further, I want to understand how each week number differs WITHIN temperature. Therefore, it is probably best to model each temperature on their own
+NOTE: Temperature is being taken as a factor here since we only care about within temperature treatments!
+I'll only be using the censor model since it lacks negatives and it's easier to handle. Also, preliminary graphs suggests data is very similar and both aren't needed for all comparisons (I will compare final models)
+Week number will be used as a factor since we care about direct differences between week 1 and 3 not just if it increases across the weeks
+We'll use a GLM and add, Week number as the only explanatory variable. We'll model specific temperatures and species on their own.
 
+Let's begin with green crabs since they are normal and "easier" to handle. In this next section, you'll see the diagnostic plots and then the following is the model summary (to parse differences).
+
+```{R echo=FALSE, warning=FALSE, message = FALSE, fig.width=7, fig.height=5}
 #GREEN CRABS------------------------------------------------------------------------
-
 par(mfrow=c(2,2))
 
 #Temperature 18 - #No differences between week numbers and model fits well
 censorsub <- subset(censor, censor$Species.x == "CM" & censor$Temperature == 18)
 mod <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
-plot(mod)
+plot(mod, main = "18C, diagnostic plots for CM")
 summary(mod)
 
 #Temperature 20 - #No differences between week numbers and model fits well
 censorsub <- subset(censor, censor$Species.x == "CM" & censor$Temperature == 20)
 mod <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
-plot(mod)
+plot(mod, main = "20C, diagnostic plots for CM")
 summary(mod)
 
 #Temperature 22 - #No differences between week numbers and model fits well
 censorsub <- subset(censor, censor$Species.x == "CM" & censor$Temperature == 22)
 mod <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
-plot(mod)
+plot(mod, main = "22C, diagnostic plots for CM")
 summary(mod)
 
 #Temperature 24 - #No differences between week numbers and model fits well
 censorsub <- subset(censor, censor$Species.x == "CM" & censor$Temperature == 24)
 mod <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
-plot(mod)
+plot(mod, main = "24C, diagnostic plots for CM")
 summary(mod)
 
 #Temperature 26 - #No differences between week numbers and model fits well
 censorsub <- subset(censor, censor$Species.x == "CM" & censor$Temperature == 26)
 mod <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
-plot(mod)
+plot(mod, main = "26C, diagnostic plots for CM")
 summary(mod)
 
 #For green crabs, there are no differences between week number within each Temperature treatment
 
+```
+
+Next up is Shore crabs. Shore crabs had a semi normal shape...? Some skew, so I'll try a GLM with normal distribution first and see how well the model does
+Again, I'll model the temperatures separately as I only care about differences within treatment. Same format as previous however, those with differences will contain pairwise differences
+
+```{R echo=FALSE, warning=FALSE, message = FALSE, fig.width=7, fig.height=5}
 #SHORE CRABS ------------------------------------------------------------------
-
-#shore crabs had a semi normal shape...? Some skew, so I'll try a GLM with normal distribution first and see how well the model does
-#again, I'll model the temperatures separately as I only care about differences within treatment
-
 par(mfrow=c(2,2))
 
 #Temperature 18 - Ok fit... let's try a Gamma family
 censorsub <- subset(censor, censor$Species.x == "HS" & censor$Temperature == 18)
 mod1 <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
-plot(mod1)
+plot(mod1, main = "18C, Diagnostic plots for HS")
 summary(mod1)
 
+#model 2 and 3 failed! Leaving out for the document
 #since 0's aren't allowed changing 0's to .001
-censorsub$proportion.eaten <- ifelse(censorsub$proportion.eaten <= 0, 0.001, censorsub$proportion.eaten)
-mod2 <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub, family = Gamma(link = "inverse"))
-plot(mod2)
-summary(mod2)
+#censorsub$proportion.eaten <- ifelse(censorsub$proportion.eaten <= 0, 0.001, censorsub$proportion.eaten)
+#mod2 <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub, family = Gamma(link = "inverse"))
+#plot(mod2)
+#summary(mod2)
 
-mod3 <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub, family = Gamma(link = "identity"))
-plot(mod3)
-summary(mod3)
-
-AIC(mod1, mod2, mod3)
+#mod3 <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub, family = Gamma(link = "identity"))
+#plot(mod3)
+#summary(mod3)
+#AIC(mod1, mod2, mod3)
 
 #mod1 is best that says there are no differences between groups
 emm <- emmeans(mod1, ~as.factor(WeekNum))
@@ -538,7 +574,7 @@ pairs(emm, adjust = "tukey")
 #Temperature 20 - Fit is OK, Week 2 and 3 are not different, but week 1 is different from week 2 and 3
 censorsub <- subset(censor, censor$Species.x == "HS" & censor$Temperature == 20)
 mod <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
-plot(mod)
+plot(mod, main = "20C Diagnostic plots for HS")
 summary(mod)
 emm <- emmeans(mod, ~as.factor(WeekNum))
 pairs(emm, adjust = "tukey")
@@ -546,7 +582,7 @@ pairs(emm, adjust = "tukey")
 #Temperature 22 - Fit is good, only difference is between week 2 and 3 - CAUTION WHEN DOING FINAL ANAYSIS - MIGHT AFFECT USING WEEK 2 AND 3
 censorsub <- subset(censor, censor$Species.x == "HS" & censor$Temperature == 22)
 mod <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
-plot(mod)
+plot(mod, main = "22C Diagnostic plots for HS")
 summary(mod)
 emm <- emmeans(mod, ~as.factor(WeekNum))
 pairs(emm, adjust = "tukey")
@@ -555,7 +591,7 @@ pairs(emm, adjust = "tukey")
 #no difference between week 1 and 2, but differences between 1-3 and 2-3
 censorsub <- subset(censor, censor$Species.x == "HS" & censor$Temperature == 24)
 mod <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
-plot(mod)
+plot(mod, main = "24C Diagnostic plots for HS")
 summary(mod)
 emm <- emmeans(mod, ~as.factor(WeekNum))
 pairs(emm, adjust = "tukey")
@@ -563,44 +599,38 @@ pairs(emm, adjust = "tukey")
 #Temperature 26 - Fit is good, 3 outliers, no differences among groups. 
 censorsub <- subset(censor, censor$Species.x == "HS" & censor$Temperature == 26)
 mod <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
-plot(mod)
+plot(mod, main = "26C Diagnostic plots for HS")
 summary(mod)
 emm <- emmeans(mod, ~as.factor(WeekNum))
 pairs(emm, adjust = "tukey")
 
 #there are differences between weeks 2 and 3 for some temperature treatments
+```
 
+Same deal for rock crabs, I used simulated residuals from the DHARMa package as diagnostic plots since we're using zero-inflated models now.
+
+```{R echo=FALSE, warning=FALSE, message = FALSE, fig.width=7, fig.height=5}
 #CI-----------------------------------------------------------------------------
-
-hist(censorsub$proportion.eaten)
 
 #Temperature 18 - worse fit, trying Gamma
 censorsub <- subset(censor, censor$Species.x == "CI" & censor$Temperature == 18)
-mod1 <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
-plot(mod1)
+#mod1 <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
+#plot(mod1, main = "Temperature 18 Diagnostic plots for CI")
 #since 0's aren't allowed changing 0's to .001
-censorsub$proportion.eaten <- ifelse(censorsub$proportion.eaten <= 0, 0.001, censorsub$proportion.eaten)
-mod2 <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub, family = Gamma(link = "inverse"))
-plot(mod2)
-mod3 <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub, family = Gamma(link = "logit"))
-plot(mod3)
-mod4 <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub, family = Gamma(link = "log"))
-plot(mod4)
+#censorsub$proportion.eaten <- ifelse(censorsub$proportion.eaten <= 0, 0.001, censorsub$proportion.eaten)
+#mod2 <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub, family = Gamma(link = "inverse"))
+#plot(mod2)
+#mod3 <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub, family = Gamma(link = "logit"))
+#plot(mod3)
+#mod4 <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub, family = Gamma(link = "log"))
+#plot(mod4)
 
-AIC(mod1, mod2, mod3, mod4)
-
-#ok, since all models are a poor fit, let's try transforming the data
-censorsub <- subset(censor, censor$Species.x == "CI" & censor$Temperature == 18)
-#since some values are 0 add 1 to it then square
-censorsub$proportion.eaten.sqrt <- sqrt(censorsub$proportion.eaten + .001)
-hist(censorsub$proportion.eaten.sqrt)
-#transforming the data isn't a good fit, let's try a zero-inflated model
-mod1 <- glm(proportion.eaten.log ~ as.factor(WeekNum), data = censorsub)
-plot(mod1)
+#AIC(mod1, mod2, mod3, mod4)
 
 #the zero-inflated model is a good fit! no differences for zeros and continous values between the weeks
 ZIglm <- glmmTMB(proportion.eaten ~ as.factor(WeekNum), data = censorsub, ziformula = ~as.factor(WeekNum), family = ziGamma((link= "inverse")))
 ZIglm.resids <- simulateResiduals(ZIglm)
+cat("18C Diagnostic plots for CI")
 plot(ZIglm.resids)
 summary(ZIglm)
 emm <- emmeans(ZIglm, ~ as.factor(WeekNum), type = "response")
@@ -611,6 +641,7 @@ pairs(emm)
 censorsub <- subset(censor, censor$Species.x == "CI" & censor$Temperature == 20)
 ZIglm <- glmmTMB(proportion.eaten ~ as.factor(WeekNum), data = censorsub, ziformula = ~as.factor(WeekNum))
 ZIglm.resids <- simulateResiduals(ZIglm)
+cat("20C Diagnostic plots for CI")
 plot(ZIglm.resids)
 summary(ZIglm)
 emm <- emmeans(ZIglm, ~ as.factor(WeekNum), type = "response")
@@ -620,6 +651,7 @@ pairs(emm)
 censorsub <- subset(censor, censor$Species.x == "CI" & censor$Temperature == 22)
 ZIglm <- glmmTMB(proportion.eaten ~ as.factor(WeekNum), data = censorsub, ziformula = ~as.factor(WeekNum), family = ziGamma((link= "inverse")))
 ZIglm.resids <- simulateResiduals(ZIglm)
+cat("22C Diagnostic plots for CI")
 plot(ZIglm.resids)
 summary(ZIglm)
 emm <- emmeans(ZIglm, ~ as.factor(WeekNum), type = "response")
@@ -629,6 +661,7 @@ pairs(emm)
 censorsub <- subset(censor, censor$Species.x == "CI" & censor$Temperature == 24)
 ZIglm <- glmmTMB(proportion.eaten ~ as.factor(WeekNum), data = censorsub, ziformula = ~as.factor(WeekNum), family = ziGamma((link= "inverse")))
 ZIglm.resids <- simulateResiduals(ZIglm)
+cat("24C Diagnostic plots for CI")
 plot(ZIglm.resids)
 summary(ZIglm)
 emm <- emmeans(ZIglm, ~ as.factor(WeekNum), type = "response")
@@ -638,16 +671,42 @@ pairs(emm)
 censorsub <- subset(censor, censor$Species.x == "CI" & censor$Temperature == 26)
 ZIglm <- glmmTMB(proportion.eaten ~ as.factor(WeekNum), data = censorsub, ziformula = ~as.factor(WeekNum), family = ziGamma((link= "inverse")))
 ZIglm.resids <- simulateResiduals(ZIglm)
+cat("26C Diagnostic plots for CI")
 plot(ZIglm.resids)
 summary(ZIglm)
 emm <- emmeans(ZIglm, ~ as.factor(WeekNum), type = "response")
 pairs(emm)
-
 ```
 
 ### The Big Question: Are there differences in consumption rate across different species and temperature?
 
-```{R, echo=FALSE,results='hide',fig.keep='all'}
+Period Checking:
+
+-I began by seeing if there were differences between periods for proportion consumed within each species and temperature treatments
+
+-I found...
+
+-   For CI, the only temperature treatment where there were differences between periods was temperature treatment 20
+
+-   For CM, the only differences were in temperature treatment 24
+
+-   For HS, temperature treatment 20, 24, 26 had differences in periods
+
+-Since there were differences between periods for some temperature treatments I added it to my models (unless AIC ranking told me Periods made the model worse)
+
+To understand if there were differences between periods, I first created a histogram graph of the distribution from the data to determine which model I should I use. I then created the model and tested the fit. If the model didn't fit well, I then used an alternative model and created a summary output.
+I began with rock crabs.
+
+####PERIOD DIFFERENCES RESULTS
+
+For CI, the only temperature treatment where there were differences between periods was temperature treatment 20
+For CM, the only differences were in temperature treatment 24
+For HS, temperature treatment 20, 24, 26 had differences in periods
+
+The rest of the temperatures were not different between periods
+Since there are differences between periods I will add it to the model
+
+```{R, echo=FALSE,results='hide',fig.keep='all', fig.width=7, fig.height=5}
 #I'm interested in understanding differences in proportion consumed across species and temperature. The period may also be a factor that affects proportion comsumed, so first I'll check if it does have an affect for proportion consumed.
 #To check for differences across period, we'll check within trial and species
 
@@ -655,142 +714,170 @@ pairs(emm)
 
 #Gamma distribution with inflated 0 -> model fits well and says NO DIFFERENCE between periods
 censorsub <- subset(censor, censor$Species.x == "CI" & Temperature == 18)
-hist(censorsub$proportion.eaten)
+hist(censorsub$proportion.eaten, main = "Distribution for 18C CI")
 ZIglm <- glmmTMB(proportion.eaten ~ as.factor(Period), data = censorsub, ziformula = ~as.factor(Period), family = ziGamma((link= "inverse")))
 ZIglm.resids <- simulateResiduals(ZIglm)
+cat("18C Diagnostic plots for CI")
 plot(ZIglm.resids)
 summary(ZIglm)
 
 #normal distribution with inflated 0 -> model fits well and says there is a DIFFERENCE between the periods
 censorsub <- subset(censor, censor$Species.x == "CI" & Temperature == 20)
-hist(censorsub$proportion.eaten)
+hist(censorsub$proportion.eaten, main = "Distribution for 20C CI")
 ZIglm <- glmmTMB(proportion.eaten ~ as.factor(Period), data = censorsub, ziformula = ~as.factor(Period))
 ZIglm.resids <- simulateResiduals(ZIglm)
+cat("20C Diagnostic plots for CI")
 plot(ZIglm.resids)
 summary(ZIglm)
 
 #poor fit for zero inflated, good fit for normal GLM (distribution is more normal). NO DIFFERENCE found in either model
 censorsub <- subset(censor, censor$Species.x == "CI" & Temperature == 22)
-hist(censorsub$proportion.eaten)
-ZIglm <- glmmTMB(proportion.eaten ~ as.factor(Period), data = censorsub, ziformula = ~as.factor(Period))
-ZIglm.resids <- simulateResiduals(ZIglm)
-plot(ZIglm.resids)
-summary(ZIglm)
-
+hist(censorsub$proportion.eaten, main = "Distribution for 22C CI")
+#ZIglm <- glmmTMB(proportion.eaten ~ as.factor(Period), data = censorsub, ziformula = ~as.factor(Period))
+#ZIglm.resids <- simulateResiduals(ZIglm)
+#plot(ZIglm.resids)
+#summary(ZIglm)
 mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
-plot(mod)
+plot(mod, main = "22C Diagnostic plots for CI")
 summary(mod)
 
 #Model is a good fit, NO DIFFERENCE between periods
 censorsub <- subset(censor, censor$Species.x == "CI" & Temperature == 24)
-hist(censorsub$proportion.eaten)
+hist(censorsub$proportion.eaten, main = "Distribution for 24C CI")
 ZIglm <- glmmTMB(proportion.eaten ~ as.factor(Period), data = censorsub, ziformula = ~as.factor(Period), family = ziGamma((link= "inverse")))
 ZIglm.resids <- simulateResiduals(ZIglm)
+cat("24C Diagnostic plots for CI")
 plot(ZIglm.resids)
 summary(ZIglm)
 
 #good fit, NO DIFFERENCE between periods
 censorsub <- subset(censor, censor$Species.x == "CI" & Temperature == 26)
-hist(censorsub$proportion.eaten)
+hist(censorsub$proportion.eaten, main = "Distribution for 26C CI")
 ZIglm <- glmmTMB(proportion.eaten ~ as.factor(Period), data = censorsub, ziformula = ~as.factor(Period), family = ziGamma((link= "inverse")))
 ZIglm.resids <- simulateResiduals(ZIglm)
+cat("26C Diagnostic plots for CI")
 plot(ZIglm.resids)
 summary(ZIglm)
 
-#CM-----------------------------------------------------------------------------
+```
 
+Moving on to green crabs, which used normal GLMs
+
+```{R, echo=FALSE,results='hide',fig.keep='all', fig.width=7, fig.height=5}
+#CM-----------------------------------------------------------------------------
 #normal distribution, fitting a normal GLM. 
 #good fit, NO DIFFERENCES between periods
 censorsub <- subset(censor, censor$Species.x == "CM" & Temperature == 18)
-hist(censorsub$proportion.eaten)
+hist(censorsub$proportion.eaten, main = "Distribution for 18C CM")
 mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
-plot(mod)
+plot(mod, main = "18C Diagnostic plots for CM")
 summary(mod)
 
 #okay fit, NO DIFFERENCES between periods
 censorsub <- subset(censor, censor$Species.x == "CM" & Temperature == 20)
-hist(censorsub$proportion.eaten)
+hist(censorsub$proportion.eaten, main = "Distribution for 20C CM")
 mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub, family = Gamma(link = "inverse"))
-plot(mod)
+plot(mod, main = "20C Diagnostic plots for CM")
 summary(mod)
 
 #good fit, NO DIFFERENCES between periods
 censorsub <- subset(censor, censor$Species.x == "CM" & Temperature == 22)
-hist(censorsub$proportion.eaten)
+hist(censorsub$proportion.eaten, main = "Distribution for 22C CM")
 mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
-plot(mod)
+plot(mod, main = "22C Diagnostic plots for CM")
 summary(mod)
 
 #good fit, there are DIFFERENCES between periods
 censorsub <- subset(censor, censor$Species.x == "CM" & Temperature == 24)
-hist(censorsub$proportion.eaten)
+hist(censorsub$proportion.eaten, main = "Distribution for 24C CM")
 mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
-plot(mod)
+plot(mod, main = "24C Diagnostic plots for CM")
 summary(mod)
 
 #good fit, NO DIFFERENCES between periods
 censorsub <- subset(censor, censor$Species.x == "CM" & Temperature == 26)
-hist(censorsub$proportion.eaten)
+hist(censorsub$proportion.eaten, main = "Distribution for 26C CM")
 mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
-plot(mod)
+plot(mod, main = "26C Diagnostic plots for CM")
 summary(mod)
 
+```
+
+Moving on to shore crabs, I used a zero inflated model for 18C and normal GLM for the rest of the models.
+
+```{R, echo=FALSE,results='hide',fig.keep='all', fig.width=7, fig.height=5}
 #HS----------------------------------------------------------------------------
 
 #both normal GLM, Gamma GLM, ZI Gamma (best fitting model) say NO DIFFERENCES
-censorsub <- subset(censor, censor$Species.x == "HS" & Temperature == 18)
-hist(censorsub$proportion.eaten)
-censorsub$proportion.eaten <- ifelse(censorsub$proportion.eaten <= 0, .001, censorsub$proportion.eaten)
-mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub, family = Gamma(link = "inverse"))
-plot(mod)
-summary(mod)
+#censorsub <- subset(censor, censor$Species.x == "HS" & Temperature == 18)
+#hist(censorsub$proportion.eaten)
+#censorsub$proportion.eaten <- ifelse(censorsub$proportion.eaten <= 0, .001, censorsub$proportion.eaten)
+#mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub, family = Gamma(link = "inverse"))
+#plot(mod)
+#summary(mod)
 
 censorsub <- subset(censor, censor$Species.x == "HS" & Temperature == 18)
-hist(censorsub$proportion.eaten)
+hist(censorsub$proportion.eaten, main = "Distribution for 18C HS")
 ZIglm <- glmmTMB(proportion.eaten ~ as.factor(Period), data = censorsub, ziformula = ~as.factor(Period), family = ziGamma((link= "inverse")))
 ZIglm.resids <- simulateResiduals(ZIglm)
+cat("18C Diagnostic plots for HS")
 plot(ZIglm.resids)
 summary(ZIglm)
 
 #good fit, there is a DIFFERENCE between periods
 censorsub <- subset(censor, censor$Species.x == "HS" & Temperature == 20)
-hist(censorsub$proportion.eaten)
+hist(censorsub$proportion.eaten, main = "Distribution for 20C CM")
 mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
+cat("20C Diagnostic plots for HS")
 plot(mod)
 summary(mod)
 
 #good fit, There is NO DIFFERENCE between periods
 censorsub <- subset(censor, censor$Species.x == "HS" & Temperature == 22)
-hist(censorsub$proportion.eaten)
+hist(censorsub$proportion.eaten, main = "Distribution for 22C CM")
 mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
+cat("22C Diagnostic plots for HS")
 plot(mod)
 summary(mod)
 
 #good fit, there is a DIFFERENCE between periods
 censorsub <- subset(censor, censor$Species.x == "HS" & Temperature == 24)
-hist(censorsub$proportion.eaten)
+hist(censorsub$proportion.eaten, main = "Distribution for 24C CM")
 mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
+cat("24C Diagnostic plots for HS")
 plot(mod)
 summary(mod)
 
 #good fit, there is a DIFFERENCE between periods
 censorsub <- subset(censor, censor$Species.x == "HS" & Temperature == 26)
-hist(censorsub$proportion.eaten)
+hist(censorsub$proportion.eaten, main = "Distribution for 26C CM")
 mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub, family = Gamma(link = "inverse"))
+cat("26C Diagnostic plots for HS")
 plot(mod)
 summary(mod)
+```
 
-#PERIOD DIFFERENCES RESULTS------------------------------------------------------------------
+Modeling Proces: -I first graphed out what the proportion consumed across temperature looks like. Hopefully we find a model that supports what the graph suggests -I also graphed out the proportion consumed for the whole dataset and for each species. When graphing the proportion consumed for the whole dataset it seems very skewed or even zero-inflated However, what's interesting is that the distribution for the response variable changes depending on the species Each species has their own distribution type. -I'll try to model the whole dataset first, but I will probably need to do model each species independently (unless there is a model that can handle multiple different distributions) -The three explanatory variables I'm using are Period (factor), Temperature (numeric), and Species (for the whole dataset, factor) -For each group, I began by making a full model and dredging it, then I use diagnostic plots to validate the model -Since the Gamma family cannot work with zeros or negative numbers, for just the Gamma models, I converted all negative and zero values to .001. -For zero-inflated gamma models, I converted them to just 0 instead of .001.
 
-#for CI, the only temperature treatment where there were differences between periods was temperature treatment 20
-#for CM, the only differences were in temperature treatment 24
-#for HS, temperature treatment 20, 24, 26 had differences in periods
+ALL DATA MODEL (censor model) -I fit 4 types of models and dredged them to find the best ones. -I fit a Zero-inflated Gamma (log, inverse, identity) Model and a GLM gamma model (also a gaussian model) -I expected the Gamma or zero-inflated since the distribution seemed skewed; however, all models returned a poor fit -This was probably due to the different distributions among the species, so I moved to modeling each species separetly.
 
-#the rest of the temperatures were not different between periods
-#Since there are differences between periods, but I am not interested in understanding how consumption changes over periods - I will include it in the model as a random effect
+Rock crab (censor model) -I tried, zero inflated Gamma (inverse, log, indentity) and GLM (identity, log, inverse) and no models returned a good fit -I also added different combinations of variables (Temperature and Period and interactions); however, all models returned poor fits -One model fit well; however, the summary output returned NaNs mostly. Unsure of how to handle this one.
 
-#Modeling---------------------------------------------------------------
+Green crab (censor model) -Dredged a full model and ran diagnostic plots on the best model. -I found a good fit for the model that suggests a signficantly small increase (.1% for every 1C) for proportion consumption in green crabs. -Period was left out since it was not in a model ranked high enough in the AIC
 
+Shore crab (censor model) -Dredged a full model and ran diagnostic plots on the best model. -I ran an AIC on the best models and different families; however, the fits were not the best. -When I tried a different model that the AIC did not determine the best - the fit was great -Further, when looking at the estimates for the temperature slope, I found that this model has a slight significant slope increase (.7% for every temperature unit increase) for proportion consumed. -I'm likely to believe the best fitting model even though AIC didn't rank it the highest as it the diagnostic plots show evidence towards it being a good fitting model -Also, all model summaries indicate this positive consumption increase as temperature increases.
+
+I then went back to model each species for the inclusive model.
+
+Rock crab (inclusive model) -I fitted GLM models first and an okay fit; however, there were some concerns over the qqplot and scale-location plot indicate a wrong fit -I then moved to zero-inflated models and found a model that fit well! -The model summary suggests a decrease in decrease consumption as temperature increases AND it also suggests as temperature increases the amount of "0"s or those who aren't eating are also increasing as temperature increases
+
+Green crabs (inclusive model) -I fitted and dredged GLM models to the data -I found a great model fit that includede temperature and period (no interaction) -There was no change in consumption across multiple temperatures; however, there was a slight increase in period 2 consumption compared to period 1 (significant)
+
+Shore crabs (inclusive model) -I fitted and dredged GLM models to the data -I found two models that were great fits (3 outliers that seemed possible to throw out) -Both models suggested a slight increase in consumption however one includes period and an interaction (between period and temperature). -I'm leaning on throwing out the model that includes period since there is no signficant change and therefore it's not important to include
+
+TLDR: -I had to model each species and temperature treatment separately since they have different distributions (unless there's a model that can handle multiple different distributions). FOR censor model -Rock crab data in the censor model was difficult to model and I couldn't find a good fitting model. -Green and shore crabs had good fitting models; however, for shore crabs the model that fit the best was not ranked the best in the AIC (best ranking AIC models did not fit well) FOR inclusive model -I found models that could fit each species, zero-inflated for rock crabs and GLMs for shore and green crabs
+
+```{R, echo=FALSE,results='hide',fig.keep='all', fig.width=7, fig.height=5}
 #In the model, I will include, Species and Temperature and use Period as a random effect
 #Exploring the data first.
 
@@ -835,212 +922,156 @@ ggplot(summary_df_inclusive, aes(x = as.numeric(Temperature), y = mean, color = 
   xlab("Trial Temperature") + labs(color = "Species")+
   ggtitle("Proportion Consumed over Trial Temperature for the inclusive model")
 
-#Little to no difference between censor and inclusive model.
-#continue as usual with censor model since it's safer
+
+
+```
+
+Little to no difference between censor and inclusive model.
+Start with censor model since it's safer
+
+I'll first model all the data in the censor model (all species)
+
+```{R, echo=FALSE,results='hide',fig.keep='all', fig.width=7, fig.height=5}
+#Graphing response variables to understand distributions-------------CENSOR-----
 
 #proportion eaten is super skewed when graphed out. Let's take a look at each species...
-hist(finalEatCensor$proportion.eaten)
+hist(finalEatCensor$proportion.eaten, main = "Distribution of proportion eaten for the censor model")
 
 censorsub <- subset(finalEatCensor, finalEatCensor$Species.x == "CI")
 #zero-inflated
-hist(censorsub$proportion.eaten)
+hist(censorsub$proportion.eaten, main = "Distribution of proportion eaten for the censor mode: rock crabs only")
 censorsub <- subset(finalEatCensor, finalEatCensor$Species.x == "CM")
 #normal
-hist(censorsub$proportion.eaten)
+hist(censorsub$proportion.eaten, main = "Distribution of proportion eaten for the censor mode: green crabs only")
 censorsub <- subset(finalEatCensor, finalEatCensor$Species.x == "HS")
 #slight right skew
-hist(censorsub$proportion.eaten)
+hist(censorsub$proportion.eaten, main = "Distribution of proportion eaten for the censor mode: shore crabs only")
 
+#changing period to a factor
+finalEatCensor$Period <- factor(finalEatCensor$Period)
 #we can try graphing with Gamma family or even zero inflated to see if it'll work.
 #we'll also dredge to get the best model.
 
-finalEatCensor$Period <- factor(finalEatCensor$Period)
-
 #GLM gamma and normal have poor fits
-all.mod.glm.normal <- lmer(proportion.eaten ~ Species.x*Temperature + (1|Period), data = finalEatCensor, na.action = "na.fail")
+#dredge does not return any favorable models with temperature
+all.mod.glm.normal <- glm(proportion.eaten ~ Species.x*Temperature*Period, data = finalEatCensor, na.action = "na.fail")
 dredge(all.mod.glm.normal)
-best.mod.glm.normal <- glmer(proportion.eaten ~ Species.x+ (1|Period), data = finalEatCensor, na.action = "na.fail")
+
+best.mod.glm.normal <- glm(proportion.eaten ~ Species.x*Period, data = finalEatCensor, na.action = "na.fail")
 plot(best.mod.glm.normal)
-qqnorm(residuals(best.mod.glm.normal))
+finalEatCensornozero <- finalEatCensor
+finalEatCensornozero$proportion.eaten <- ifelse(finalEatCensornozero$proportion.eaten <= 0, .001, finalEatCensornozero$proportion.eaten)
+all.mod.glm.normal <- glm(proportion.eaten ~ Species.x*Temperature*Period, data = finalEatCensornozero, family = Gamma(link = "log"), na.action = "na.fail")
+best.mod.glm.normal <- glm(proportion.eaten ~ Species.x*Temperature, data = finalEatCensor, na.action = "na.fail")
+plot(best.mod.glm.normal)
+all.mod.glm.normal <- glm(proportion.eaten ~ Species.x*Temperature*Period, data = finalEatCensornozero, family = Gamma(link = "inverse"), na.action = "na.fail")
+best.mod.glm.normal <- glm(proportion.eaten ~ Species.x*Temperature, data = finalEatCensor, na.action = "na.fail")
+plot(best.mod.glm.normal)
+
 
 #Trying zero-inflated gamma model
-all.ZIglm <- glmmTMB(proportion.eaten ~ Species.x*Temperature + (1|Period), data = finalEatCensor, ziformula = ~1, family = ziGamma((link= "inverse")), na.action = "na.fail")
+all.ZIglm <- glmmTMB(proportion.eaten ~ Species.x*Temperature*Period, data = finalEatCensor, ziformula = ~1, family = ziGamma((link= "inverse")), na.action = "na.fail")
 dredge(all.ZIglm)
-ZIglm.resids <- simulateResiduals(all.ZIglm)
-
-#poor fit
+best.mod <- all.ZIglm <- glmmTMB(proportion.eaten ~ Species.x*Temperature, data = finalEatCensor, ziformula = ~1, family = ziGamma((link= "inverse")), na.action = "na.fail")
+ZIglm.resids <- simulateResiduals(best.mod)
 plot(ZIglm.resids)
-summary(ZIglm)
-
-#trying zero-inflated Gamma model
-all.ZIglm <- glmmTMB(proportion.eaten ~ Species.x*Temperature + (1|Period), data = finalEatCensor, ziformula = ~1, family = ziGamma((link= "inverse")), na.action = "na.fail")
+all.ZIglm <- glmmTMB(proportion.eaten ~ Species.x*Temperature*Period, data = finalEatCensor, ziformula = ~Temperature, family = ziGamma((link= "inverse")), na.action = "na.fail")
 dredge(all.ZIglm)
-ZIglm.resids <- simulateResiduals(all.ZIglm)
+best.mod <- all.ZIglm <- glmmTMB(proportion.eaten ~ Species.x*Temperature, data = finalEatCensor, ziformula = ~Temperature, family = ziGamma((link= "inverse")), na.action = "na.fail")
+ZIglm.resids <- simulateResiduals(best.mod)
 plot(ZIglm.resids)
-summary(ZIglm)
-
 #trying zero-inflated normal model
-all.ZIglm <- glmmTMB(proportion.eaten ~ Species.x*Temperature + (1|Period), data = finalEatCensor, ziformula = ~1, na.action = "na.fail")
+all.ZIglm <- glmmTMB(proportion.eaten ~ Species.x*Temperature*Period, data = finalEatCensor, ziformula = ~1, na.action = "na.fail")
 dredge(all.ZIglm)
-ZIglm.resids <- simulateResiduals(all.ZIglm)
+best.mod <- glmmTMB(proportion.eaten ~ Species.x*Temperature, data = finalEatCensor, ziformula = ~1, na.action = "na.fail")
+ZIglm.resids <- simulateResiduals(best.mod)
 plot(ZIglm.resids)
-summary(ZIglm)
+```
 
-censor_nozero <- finalEatCensor
-censor_nozero$proportion.eaten <- ifelse(finalEatCensor$proportion.eaten <= 0, 0.001, finalEatCensor$proportion.eaten)
-m_hurdle <- glmmTMB(
-  proportion.eaten ~ Species.x * Temperature,
-  data = censor_nozero,
-  family = Gamma(link = "inverse"),
-  ziformula = ~0,          # no ZI
-  dispformula = ~1
-)
-ZIglm.resids <- simulateResiduals(m_hurdle)
-plot(ZIglm.resids)
-summary(ZIglm)
+I tried, zero inflated Gamma (inverse, log, identity) and GLM (identity, log, inverse) and no models returned a good fit
+Let's try modeling each species separately since they all have different distributions.
+We'll begin with rock crabs.
 
-m_hurdle <- glmmTMB(
-  proportion.eaten ~ Species.x * Temperature,
-  data = censor_nozero,
-  family = Gamma(link = "log"),
-  ziformula = ~0,          # no ZI
-  dispformula = ~1
-)
-ZIglm.resids <- simulateResiduals(m_hurdle)
-plot(ZIglm.resids)
-summary(m_hurdle)
+```{R, echo=FALSE,results='hide',fig.keep='all', fig.width=7, fig.height=5}
+#Rock crab - censor model -----------------------------------------------------
 
-m_tweedie <- glmmTMB(
-  proportion.eaten ~ Species.x * Temperature,
-  data = finalEatCensor,
-  family = tweedie(link = "log")
-)
-ZIglm.resids <- simulateResiduals(m_tweedie)
-plot(ZIglm.resids)
-summary(m_hurdle)
-
-#all models fail, let's sort by species then make comparisons across slope value
-
-#Rock crab - zero-inflated -----------------------------------------------------
+#distribution seems to be zero-inflated with a normal distribution
 censorsub <- subset(finalEatCensor, finalEatCensor$Species.x == "CI")
 hist(censorsub$proportion.eaten)
 
-#model 6 and 10 come close
-ZIglm1 <- glmmTMB(proportion.eaten ~ Temperature*Period, data = censorsub, ziformula = ~1, family = ziGamma((link= "inverse")),na.action = "na.fail")
-ZIglm2 <- glmmTMB(proportion.eaten ~ Temperature + Period, data = censorsub, ziformula = ~1, family = ziGamma((link= "inverse")),na.action = "na.fail")
-ZIglm3 <- glmmTMB(proportion.eaten ~ Period, data = censorsub, ziformula = ~1, family = ziGamma((link= "inverse")),na.action = "na.fail")
-ZIglm4 <- glmmTMB(proportion.eaten ~ 1, data = censorsub, ziformula = ~1, family = ziGamma((link= "inverse")),na.action = "na.fail")
-ZIglm5 <- glmmTMB(proportion.eaten ~ Temperature, data = censorsub, ziformula = ~1, family = ziGamma((link= "inverse")),na.action = "na.fail")
-ZIglm6 <- glmmTMB(proportion.eaten ~ Temperature*Period, data = censorsub, ziformula = ~1,na.action = "na.fail")
-ZIglm7 <- glmmTMB(proportion.eaten ~ Temperature + Period, data = censorsub, ziformula = ~1,na.action = "na.fail")
-ZIglm8 <- glmmTMB(proportion.eaten ~ Period, data = censorsub, ziformula = ~1,na.action = "na.fail")
-ZIglm9 <- glmmTMB(proportion.eaten ~ 1, data = censorsub, ziformula = ~1,na.action = "na.fail")
-ZIglm10 <- glmmTMB(proportion.eaten ~ Temperature, data = censorsub, ziformula = ~1,na.action = "na.fail")
-ZIglm11 <- glmmTMB(proportion.eaten ~ Temperature*Period, data = censorsub, ziformula = ~1, family = ziGamma((link= "log")),na.action = "na.fail")
-ZIglm12 <- glmmTMB(proportion.eaten ~ Temperature + Period, data = censorsub, ziformula = ~1, family = ziGamma((link= "log")),na.action = "na.fail")
-ZIglm13 <- glmmTMB(proportion.eaten ~ Period, data = censorsub, ziformula = ~1, family = ziGamma((link= "log")),na.action = "na.fail")
-ZIglm14 <- glmmTMB(proportion.eaten ~ 1, data = censorsub, ziformula = ~1, family = ziGamma((link= "log")),na.action = "na.fail")
-ZIglm15 <- glmmTMB(proportion.eaten ~ Temperature, data = censorsub, ziformula = ~1, family = ziGamma((link= "log")),na.action = "na.fail")
+all.ZIglm <- glmmTMB(proportion.eaten ~ Temperature*Period, data = censorsub, ziformula = ~Temperature, na.action = "na.fail")
+dredge(all.ZIglm)
 
-ZIglm16 <- glmmTMB(proportion.eaten ~ Temperature*Period, data = censorsub, ziformula = ~Temperature, family = ziGamma((link= "inverse")),na.action = "na.fail")
-ZIglm17 <- glmmTMB(proportion.eaten ~ Temperature + Period, data = censorsub, ziformula = ~Temperature, family = ziGamma((link= "inverse")),na.action = "na.fail")
-ZIglm18 <- glmmTMB(proportion.eaten ~ Period, data = censorsub, ziformula = ~Temperature, family = ziGamma((link= "inverse")),na.action = "na.fail")
-ZIglm19 <- glmmTMB(proportion.eaten ~ 1, data = censorsub, ziformula = ~Temperature, family = ziGamma((link= "inverse")),na.action = "na.fail")
-ZIglm20 <- glmmTMB(proportion.eaten ~ Temperature, data = censorsub, ziformula = ~Temperature, family = ziGamma((link= "inverse")),na.action = "na.fail")
-ZIglm21 <- glmmTMB(proportion.eaten ~ Temperature*Period, data = censorsub, ziformula = ~Temperature,na.action = "na.fail")
-ZIglm22 <- glmmTMB(proportion.eaten ~ Temperature + Period, data = censorsub, ziformula = ~Temperature,na.action = "na.fail")
-ZIglm23 <- glmmTMB(proportion.eaten ~ Period, data = censorsub, ziformula = ~Temperature,na.action = "na.fail")
-ZIglm24 <- glmmTMB(proportion.eaten ~ 1, data = censorsub, ziformula = ~1,na.action = "na.fail")
-ZIglm25 <- glmmTMB(proportion.eaten ~ Temperature, data = censorsub, ziformula = ~Temperature,na.action = "na.fail")
-ZIglm26 <- glmmTMB(proportion.eaten ~ Temperature*Period, data = censorsub, ziformula = ~Temperature, family = ziGamma((link= "log")),na.action = "na.fail")
-ZIglm27 <- glmmTMB(proportion.eaten ~ Temperature + Period, data = censorsub, ziformula = ~Temperature, family = ziGamma((link= "log")),na.action = "na.fail")
-ZIglm28 <- glmmTMB(proportion.eaten ~ Period, data = censorsub, ziformula = ~Temperature, family = ziGamma((link= "log")),na.action = "na.fail")
-ZIglm29 <- glmmTMB(proportion.eaten ~ 1, data = censorsub, ziformula = ~Temperature, family = ziGamma((link= "log")),na.action = "na.fail")
-ZIglm30 <- glmmTMB(proportion.eaten ~ Temperature, data = censorsub, ziformula = ~Temperature, family = ziGamma((link= "log")),na.action = "na.fail")
+#best.mod1 <- glmmTMB(proportion.eaten ~ Temperature + Period, data = censorsub, ziformula = ~Temperature,na.action = "na.fail")
+#best.mod2 <- glmmTMB(proportion.eaten ~ Temperature, data = censorsub, ziformula = ~Temperature,na.action = "na.fail")
+best.mod3 <- glmmTMB(proportion.eaten ~ Temperature*Period, data = censorsub, ziformula = ~Temperature, na.action = "na.fail")
 
-#mod 6 and 8 are the best
-mod1 <- glm(proportion.eaten ~ Temperature*Period, data = censorsub)
-mod2 <- glm(proportion.eaten ~ Temperature + Period, data = censorsub)
-mod3 <- glm(proportion.eaten ~ Temperature, data = censorsub)
-mod4 <- glm(proportion.eaten ~ Period, data = censorsub)
-mod5 <- glm(proportion.eaten ~ 1, data = censorsub)
-censor_nozero <- censorsub
-censor_nozero$proportion.eaten <- ifelse(censor_nozero$proportion.eaten <= 0, 0.001, censor_nozero$proportion.eaten)
-mod6 <- glm(proportion.eaten ~ Temperature*Period, family = Gamma(link = "log"), data = censor_nozero)
-mod7 <- glm(proportion.eaten ~ Temperature + Period, family = Gamma(link = "log"), data = censor_nozero)
-mod8 <- glm(proportion.eaten ~ Temperature, family = Gamma(link = "log"), data = censor_nozero)
-mod9 <- glm(proportion.eaten ~ Period, family = Gamma(link = "log"), data = censor_nozero)
-mod10 <- glm(proportion.eaten ~ 1, family = Gamma(link = "log"), data = censor_nozero)
-mod11 <- glm(proportion.eaten ~ Temperature*Period, family = Gamma(link = "inverse"), data = censor_nozero)
-mod12 <- glm(proportion.eaten ~ Temperature + Period, family = Gamma(link = "inverse"), data = censor_nozero)
-mod13 <- glm(proportion.eaten ~ Temperature, family = Gamma(link = "inverse"), data = censor_nozero)
-mod14 <- glm(proportion.eaten ~ Period, family = Gamma(link = "inverse"), data = censor_nozero)
-mod15 <- glm(proportion.eaten ~ 1, family = Gamma(link = "inverse"), data = censor_nozero)
-
-AIC(ZIglm1, ZIglm2, ZIglm3, ZIglm4, ZIglm5, ZIglm6, ZIglm7, ZIglm8, ZIglm9, ZIglm10, ZIglm11, ZIglm12, ZIglm13, ZIglm14, ZIglm15, ZIglm16, ZIglm17, ZIglm18, ZIglm19, ZIglm20, ZIglm21, ZIglm22, ZIglm23, ZIglm24, ZIglm25, ZIglm26, ZIglm27, ZIglm28, ZIglm29, ZIglm30)
-AIC(mod1, mod2, mod3, mod4, mod5, mod6, mod7, mod8, mod9, mod10, mod11, mod12, mod13, mod14, mod15)
-
-#fit is poor among the top models that AIC spits back...
-best.glm.mod1 <- glm(proportion.eaten ~ Temperature*Period, family = Gamma(link = "log"), data = censor_nozero)
-best.glm.mod2 <- glm(proportion.eaten ~ Temperature, family = Gamma(link = "log"), data = censor_nozero)
-ZIglm.resids <- simulateResiduals(best.glm.mod1)
-plot(ZIglm.resids)
-ZIglm.resids <- simulateResiduals(best.glm.mod2)
+#ZIglm.resids <- simulateResiduals(best.mod1)
+#plot(ZIglm.resids)
+#ZIglm.resids <- simulateResiduals(best.mod2)
+#plot(ZIglm.resids)
+ZIglm.resids <- simulateResiduals(best.mod3)
+cat("Best zero-inflated model for CI")
 plot(ZIglm.resids)
 
-#models without gamma are ranked lower in AIC; however, they have 
-best.glm.mod3 <- glm(proportion.eaten ~ Temperature*Period, data = censor_nozero)
-best.glm.mod4 <- glm(proportion.eaten ~ Temperature, data = censor_nozero)
+all.glm <- glm(proportion.eaten ~ Temperature*Period, data = censorsub, na.action = "na.fail")
+dredge(all.glm)
+
+best.mod1 <- glm(proportion.eaten ~ Temperature*Period, data = censorsub, na.action = "na.fail")
+#best.mod2 <- glm(proportion.eaten ~ Temperature + Period, data = censorsub, na.action = "na.fail")
+#best.mod3 <- glm(proportion.eaten ~ Temperature, data = censorsub, na.action = "na.fail")
+
 par(mfrow = c(2,2))
-plot(best.glm.mod3)
-plot(best.glm.mod4)
+plot(best.mod1, main = "Best GLM model for CI")
+#plot(best.mod2)
+#plot(best.mod3)
 
-#model 2 fits well except for (what I assume) temperature 26 C - NaN produced all around for summaries, need an alternative
-best.ZI.mod1 <- glmmTMB(proportion.eaten ~ Temperature*Period, data = censorsub, ziformula = ~1,na.action = "na.fail")
-best.ZI.mod2 <- glmmTMB(proportion.eaten ~ Temperature, data = censorsub, ziformula = ~1,na.action = "na.fail")
-ZIglm.resids <- simulateResiduals(best.mod1)
-plot(ZIglm.resids)
-ZIglm.resids <- simulateResiduals(best.mod2)
-plot(ZIglm.resids)
+```
 
-ZIglm.resids <- simulateResiduals(ZIglm10)
-plot(ZIglm.resids)
-summary(ZIglm10)
+Rock crabs didn't have a great model. The normal GLM model was an okay fit, but potentially alarming due to the scale-location plot.
+
+Next is green crabs. I dredged the full model then compared all the top models within 2 delta units of the top across Gamma, 
+
+```{R, echo=FALSE,results='hide',fig.keep='all', fig.width=7, fig.height=5}
 #Green crab - Normal -----------------------------------------------------------
 censorsub <- subset(finalEatCensor, finalEatCensor$Species.x == "CM")
-hist(censorsub$proportion.eaten)
+hist(censorsub$proportion.eaten, main = "Distribution for CM Censor Model", xlab = "Proportion Consumed")
 
 #tie between 3 models
 all.mod <- glm(proportion.eaten ~ Temperature*Period, data = censorsub, na.action = "na.fail")
 dredge(all.mod)
 
 #model 3 is the best
-censorsub$proportion.eaten <- ifelse(censorsub$proportion.eaten <= 0, .001, censorsub$proportion.eaten)
-all.mod.mixed1 <- glm(proportion.eaten ~ Temperature, family = Gamma(link = "inverse"), data = censorsub, na.action = "na.fail")
-all.mod.mixed2 <- glm(proportion.eaten ~ Temperature, family = Gamma(link = "log"), data = censorsub, na.action = "na.fail")
-all.mod.mixed3 <- glm(proportion.eaten ~ Temperature, data = censorsub, na.action = "na.fail")
-all.mod.mixed4 <- glm(proportion.eaten ~ Temperature*Period, family = Gamma(link = "inverse"), data = censorsub, na.action = "na.fail")
-all.mod.mixed5 <- glm(proportion.eaten ~ Temperature*Period, family = Gamma(link = "log"), data = censorsub, na.action = "na.fail")
-all.mod.mixed6 <- glm(proportion.eaten ~ Temperature*Period, data = censorsub, na.action = "na.fail")
-all.mod.mixed7 <- glm(proportion.eaten ~ Temperature+Period, family = Gamma(link = "inverse"), data = censorsub, na.action = "na.fail")
-all.mod.mixed8 <- glm(proportion.eaten ~ Temperature+Period, family = Gamma(link = "log"), data = censorsub, na.action = "na.fail")
-all.mod.mixed9 <- glm(proportion.eaten ~ Temperature+Period, data = censorsub, na.action = "na.fail")
-AIC(all.mod.mixed2, all.mod.mixed1, all.mod.mixed3, all.mod.mixed4, all.mod.mixed5, all.mod.mixed6, all.mod.mixed7, all.mod.mixed8, all.mod.mixed9)
+mod1 <- glm(proportion.eaten ~ Temperature, data = censorsub, na.action = "na.fail")
+mod2 <- glm(proportion.eaten ~ Temperature + Period, data = censorsub, na.action = "na.fail")
+mod3 <- glm(proportion.eaten ~ Temperature*Period, data = censorsub, na.action = "na.fail")
 
-#model 3 is a good fit!
+#plot(mod2)
+#plot(mod3)
+
+#model 1, 2 and 3 are good fits!
 par(mfrow = c(2,2))
-plot(all.mod.mixed3)
-plot(fitted(all.mod.mixed3), residuals(all.mod.mixed3))
-abline(h=0, col="red")
-hist(residuals(all.mod.mixed3))
+plot(mod1, main = "Best GLM model for CM")
+#plot(fitted(mod1), residuals(mod1))
+#abline(h=0, col="red")
+#hist(residuals(mod1))
 
-summary(all.mod.mixed3)
+summary(mod1)
+#summary(mod2)
+#summary(mod3)
+```
 
+Green crabs had 3 great models, interaction (between period and temperature), additive, and just temperature model all seem like great fits.
+Models 1 and 2 both say temperature has a significant slight increase while model 3 does not (interaction model). Model 3 also suggests period and its interaction are not different.
+I am more likely to believe there is a slight increase based on the exploratory graphs and since period is not significant I'll choose model 1 to go with.
+
+Moving on to the shore crabs.
+
+```{R, echo=FALSE,results='hide',fig.keep='all', fig.width=7, fig.height=5}
 #Shore crab - skew/normal ------------------------------------------------------
 censorsub <- subset(finalEatCensor, finalEatCensor$Species.x == "HS")
-hist(censorsub$proportion.eaten)
+hist(censorsub$proportion.eaten, main = "Distribution of Response, shore crab", xlab = "Proportion eaten")
 
-#dredge function returns that period is not important to the model, so I'll leave it out
 all.mod.mixed <- glm(proportion.eaten ~ Temperature*Period, data = censorsub, na.action = "na.fail")
 dredge(all.mod.mixed)
 
@@ -1052,24 +1083,114 @@ all.mod.mixed3 <- glm(proportion.eaten ~ Temperature, data = censorsub, na.actio
 all.mod.mixed4 <- glm(proportion.eaten ~ Temperature*Period, family = Gamma(link = "inverse"), data = censorsub, na.action = "na.fail")
 all.mod.mixed5 <- glm(proportion.eaten ~ Temperature*Period, family = Gamma(link = "log"), data = censorsub, na.action = "na.fail")
 all.mod.mixed6 <- glm(proportion.eaten ~ Temperature*Period, data = censorsub, na.action = "na.fail")
-AIC(all.mod.mixed1, all.mod.mixed2, all.mod.mixed3, all.mod.mixed4, all.mod.mixed5, all.mod.mixed6)
+#AIC(all.mod.mixed1, all.mod.mixed2, all.mod.mixed3, all.mod.mixed4, all.mod.mixed5, all.mod.mixed6)
 
-#best AIC model and great fit
+#It's not the best model according to AIC, but has a great fit?
 par(mfrow = c(2,2))
-plot(all.mod.mixed3)
-plot(fitted(all.mod.mixed3), residuals(all.mod.mixed3))
-abline(h=0, col="red")
-hist(residuals(all.mod.mixed3))
+plot(all.mod.mixed3, main = "Diagnostic plots for shore crabs")
+#plot(all.mod.mixed6)
 
-#both indicate temperature slope is non 0
+#whereas the best models that AIC returns don't have great fits
+#plot(all.mod.mixed1)
+#plot(all.mod.mixed2)
+#plot(all.mod.mixed4)
+
+#both indicate temperature slope is positive and ever so slightly increasing
 summary(all.mod.mixed3)
+#summary(all.mod.mixed6)
 
+#increase slope
+#summary(all.mod.mixed1)
+#positive slope
+#summary(all.mod.mixed2)
+#addition of period (no effect + no interaction), positive slope
+#summary(all.mod.mixed4)
 
-
+#based on the summaries, I would believe model 2 and 3; however, model 3 has a better fit but ranks lower on the AIC
 
 ```
 
+Models okay, let's compare these to the inclusive model and see how they fit over that data.
 
+```{R, echo=FALSE,results='hide',fig.keep='all', fig.width=7, fig.height=5}
+#INCLUSIVE MODEL----------------------------------------------------------------
+
+#I can't seem to get the censor model to fit well for rock crabs, so let's model the inclusive model to maybe get a better fit?
+
+#HS-------------------------------------------------------------------------------
+
+inclusivesub <- subset(finalEatInclusive, finalEatInclusive$Species.x == "HS")
+hist(inclusivesub$proportion.eaten)
+
+#dredge function returns that period is not important to the model, so I'll leave it out
+all.mod.mixed <- glm(proportion.eaten ~ Temperature*Period, data = inclusivesub, na.action = "na.fail")
+dredge(all.mod.mixed)
+
+#model 3 is the best and the glm fits well
+all.mod.mixed1 <- glm(proportion.eaten ~ Temperature, data = inclusivesub, na.action = "na.fail")
+all.mod.mixed6 <- glm(proportion.eaten ~ Temperature*Period, data = inclusivesub, na.action = "na.fail")
+AIC(all.mod.mixed1, all.mod.mixed6)
+
+#3 outliers, but looks good
+par(mfrow = c(2,2))
+plot(all.mod.mixed1)
+plot(all.mod.mixed6)
+#model 3 and 6 are pretty good
+
+#both have signficantly positive slopes; however, model 6 includes Period and an interaction (both of which aren't significant)
+summary(all.mod.mixed1)
+summary(all.mod.mixed6)
+#maybe go with model 6 because in addition to support a positive slope, it suggests there is no difference between periods, but also less variables make it easier to interpret
+
+#CM-----------------------------------------------------------------------------
+
+inclusivesub <- subset(finalEatInclusive, finalEatInclusive$Species.x == "CM")
+hist(inclusivesub$proportion.eaten)
+
+#dredge function returns that period is not important to the model, so I'll leave it out
+all.mod.mixed <- glm(proportion.eaten ~ Temperature*Period, data = inclusivesub, na.action = "na.fail")
+dredge(all.mod.mixed)
+
+#model 3 is the best and the glm fits well
+all.mod.mixed1 <- glm(proportion.eaten ~ 1, data = inclusivesub, na.action = "na.fail")
+all.mod.mixed2 <- glm(proportion.eaten ~ Temperature, data = inclusivesub, na.action = "na.fail")
+all.mod.mixed3 <- glm(proportion.eaten ~ Temperature+Period, data = inclusivesub, na.action = "na.fail")
+all.mod.mixed4 <- glm(proportion.eaten ~ Temperature*Period, data = inclusivesub, na.action = "na.fail")
+AIC(all.mod.mixed1, all.mod.mixed2, all.mod.mixed3, all.mod.mixed4)
+
+par(mfrow = c(2,2))
+plot(all.mod.mixed3)
+plot(all.mod.mixed4)
+#model 3 is the best fit
+
+summary(all.mod.mixed3)
+#there is a difference between periods, and no difference for temperature it is not increasing or decreasing over temperature 
+
+#CI-----------------------------------------------------------------------------
+
+inclusivesub <- subset(finalEatInclusive, finalEatInclusive$Species.x == "CI")
+hist(inclusivesub$proportion.eaten)
+
+all.mod.mixed <- glm(proportion.eaten ~ Temperature*Period, data = inclusivesub, na.action = "na.fail")
+dredge(all.mod.mixed)
+
+#ehhh kind of fit - maybe try turning everything above 0 to try Gamma - Gamma does not work, much worse fit
+par(mfrow = c(2,2))
+plot(all.mod.mixed)
+
+
+#Moving on to zero-inflation
+#ziGamma - inverse, poor
+inclusivesub$proportion.eaten <- ifelse(inclusivesub$proportion.eaten < 0, 0, inclusivesub$proportion.eaten)
+ZIglm1 <- glmmTMB(proportion.eaten ~ Temperature*Period, data = inclusivesub, ziformula = ~1, family = ziGamma((link= "inverse")),na.action = "na.fail")
+dredge(ZIglm1)
+
+#this model looks good!
+ZIglm1 <- glmmTMB(proportion.eaten ~ Temperature + Period, data = inclusivesub, ziformula = ~Temperature, family = ziGamma((link= "log")),na.action = "na.fail")
+ZIglm.resids <- simulateResiduals(ZIglm1)
+plot(ZIglm.resids)
+summary(ZIglm1)
+```
 
 EXTRAS
 
@@ -1133,91 +1254,10 @@ ggplot(date_list, aes(x = day, y = as.factor(trial), fill = as.factor(period))) 
                                 "2"="blue4"))
 ```
 
-## Outlier Search
-
-```{r, fig.show="hold", out.width="50%", echo = FALSE, warning = FALSE}
-ggplot(all, aes(y = CL, color = Species.x)) + geom_boxplot() +
-  ggtitle("Species Comparison between Carapace Length")+
-  scale_color_manual(values = c("CI" = "darkorange",
-                                "CM"="darkgreen",
-                                "HS"="darkred"))
-
-ggplot(all, aes(y = proportion.eaten, color = Species.x)) + geom_boxplot() +
-  ggtitle("Species Comparison Between Proportion Eaten")+
-  scale_color_manual(values = c("CI" = "darkorange",
-                                "CM"="darkgreen",
-                                "HS"="darkred"))
-
-# Carapace Length and Wet Weight Comparison between species
-
-ggplot(master, aes(x = WW, y = CL, color = Species)) + geom_point()+
-  ggtitle("Carapace Length and Wet Weight Comparison between species")+
-  scale_color_manual(values = c("Irroratus" = "darkorange",
-                                "Carcinus"="darkgreen",
-                                "Hemigrapsus"="darkred"))
-
-
-#There is an outlier who is CM 176 - I am willing to throw this individual out since he is the only one of it's kind
-#all <- subset(all, all$ID != "CM176")
-outliers <- list(c(ID = "CM176"))
-
-#Pretty normal - looking good
-# Checking for Outliers and that wet weight is normal
-holddf <- subset(master, master$Species == "Irroratus")
-ggplot(holddf, aes(x = WW)) + geom_histogram(binwidth = 25, fill = "darkorange", color = "black") + facet_wrap(~Species, scales = "free") + ggtitle("Wet weight for Cancer")
-
-holddf <- subset(master, master$Species == "Carcinus")
-ggplot(holddf, aes(x = WW)) + geom_histogram(binwidth = 15, fill = "darkgreen", color = "black") + facet_wrap(~Species, scales = "free") + ggtitle("Wet weight for Carcinus")
-
-holddf <- subset(master, master$Species == "Hemigrapsus")
-ggplot(holddf, aes(x = WW)) + geom_histogram(binwidth = 1, fill = "darkred", color = "black") + facet_wrap(~Species, scales = "free") + ggtitle("Wet weight for Hemigrapsus")
-
-#We can check if there are differences in weight weight between Species and Trial through some quick models
-holddf <- subset(master, master$Species == "Irroratus")
-mod <- glm(holddf$WW ~ holddf$Trial * holddf$Period)
-emm <- emmeans(mod, ~ Trial*Period)
-pairs_data <- pairs(emm)
-pairs_data
-
-holddf <- subset(master, master$Species == "Carcinus")
-mod <- glm(holddf$WW ~ holddf$Trial * holddf$Period)
-emm <- emmeans(mod, ~ Trial*Period)
-pairs_data <- pairs(emm)
-pairs_data
-
-holddf <- subset(master, master$Species == "Hemigrapsus")
-mod <- glm(holddf$WW ~ holddf$Trial * holddf$Period)
-emm <- emmeans(mod, ~ Trial*Period)
-pairs_data <- pairs(emm)
-pairs_data
-
-#NO DIFFERENCE FOR SIZE BETWEEN TRIAL AND PERIOD FOR EACH SPECIES WOOOOOOOO
-
-#Looking more specifically at each outlier for weight to see if they acted as expected or not. Checking in on the outlier for rock and hemi
-#CI117
-holddf <- subset(all, all$ID == "CI117")
-ggplot(holddf, aes(x = Date.x, y = proportion.eaten)) + geom_point() + geom_smooth(method = "loess", se = FALSE) + ggtitle("Proportion eaten by CI117 in 18 C in period 2")
-
-#HS92
-holddf <- subset(all, all$ID == "HS92")
-ggplot(holddf, aes(x = Date.x, y = proportion.eaten)) + geom_point() + geom_smooth(method = "loess", se = FALSE) + ggtitle("Proportion eaten by HS92 in 26 C in period 2")
-
-#HS92
-holddf <- subset(all, all$ID == "CM176")
-ggplot(holddf, aes(x = Date.x, y = proportion.eaten)) + geom_point() + geom_smooth(method = "loess", se = FALSE) + ggtitle("Proportion eaten by CM176 in 20 C in period 2")
-
-# Plotting the proportion eaten to see outliers and normality
-ggplot(all, aes(x = proportion.eaten, fill = Species.x)) + geom_histogram(binwidth = 0.01) + facet_wrap(~Species.x, scales = "free") + ggtitle("Proportion eaten by species")+
-  scale_fill_manual(values = c("CI" = "darkorange",
-                                "CM"="darkgreen",
-                                "HS"="darkred"))
-#everyone looks normal except for hemigrapsus which has some trialing end points
-```
-
 ### Size effect on Consumption
 
 ```{R echo = FALSE}
-ggplot(all, aes(x = WW, y = proportion.eaten, color = Species.x)) + geom_point() +geom_smooth(aes(x = WW, y = proportion.eaten,group = Species.x),   
+ggplot(censor, aes(x = WW, y = proportion.eaten, color = Species.x)) + geom_point() +geom_smooth(aes(x = WW, y = proportion.eaten,group = Species.x),   
     color = "black",    
     se = FALSE,
     inherit.aes = FALSE,
@@ -1225,30 +1265,17 @@ ggplot(all, aes(x = WW, y = proportion.eaten, color = Species.x)) + geom_point()
   scale_x_log10() +
   scale_color_manual(values = c("CI" = "darkorange",
                                 "CM"="darkgreen",
-                                "HS"="darkred")) + ylab("Amount Eaten (proportionally)") +xlab("WW (log scale)") +ggtitle("Amount Eaten by Weight") + labs(color = "Species")
-```
+                                "HS"="darkred")) + ylab("Amount Eaten (proportionally)") +xlab("WW (log scale)") +ggtitle("Amount Eaten by Weight (censor)") + labs(color = "Species")
 
-### Regraphing Hemi and Carcinus without those who didn't eat (prediction of molt)
-
-```{R, echo=FALSE,results='hide',fig.keep='all'}
-summary_df <- EatDF %>%
-  group_by(Species.x, Temperature, Period, still_eating) %>%
-  summarise(
-    mean = mean(proportion.eaten),
-    se = sd(proportion.eaten) / sqrt(n())
-  )
-summary_df <- subset(summary_df, summary_df$still_eating == "NO")
-
-ggplot(summary_df, aes(x = as.numeric(Temperature), y = mean, color = Species.x)) + geom_point(position = position_dodge(width = 0.3))+
-  scale_color_manual(values = c("HS" = "darkred",
-                                 "CM" = "darkgreen",
-                                 "CI" = "darkorange"))+
-  geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
-                width = 0.1, size = 0.8, position = position_dodge(width = 0.3)) +
-  geom_smooth(method = "loess", se = FALSE)+ scale_y_log10()+
-  ylab("Logged Mean of Proportion Eaten")+
-  xlab("Trial Temperature") + labs(color = "Species")+
-  ggtitle("Proportion Consumed over Trial Temperature")
+ggplot(inclusive, aes(x = WW, y = proportion.eaten, color = Species.x)) + geom_point() +geom_smooth(aes(x = WW, y = proportion.eaten,group = Species.x),   
+    color = "black",    
+    se = FALSE,
+    inherit.aes = FALSE,
+    method = "lm")+  
+  scale_x_log10() +
+  scale_color_manual(values = c("CI" = "darkorange",
+                                "CM"="darkgreen",
+                                "HS"="darkred")) + ylab("Amount Eaten (proportionally)") +xlab("WW (log scale)") +ggtitle("Amount Eaten by Weight (inclusive)") + labs(color = "Species")
 ```
 
 ### Graphing the Husbandry Logs
@@ -1257,7 +1284,7 @@ ggplot(summary_df, aes(x = as.numeric(Temperature), y = mean, color = Species.x)
 savedhus <- husbandry
 husbandry <- savedhus
 husbandry$Date <- as.Date(husbandry$Date, format="%m/%d/%Y")
-ggplot(husbandry, aes(x = Date, y = Temperature, color = Trial)) + geom_point() + facet_grid(Period~System)+
+ggplot(husbandry, aes(x = Date, y = as.numeric(Actual), color = as.factor(Temperature))) + geom_point() + facet_grid(Period~System)+
   scale_y_continuous(breaks = c(16, 18, 20, 22, 24, 26, 28))+ggtitle("Temperature Records for Each System and Trial") + 
   scale_color_manual(values = c("18"= "yellow",
                                "20" = "#fecc5c",
@@ -1270,29 +1297,31 @@ ggplot(husbandry, aes(x = Date, y = Temperature, color = Trial)) + geom_point() 
 
 ```{R, echo=FALSE,results='hide',fig.keep='all'}
 ID_list <- list()
-trial_list <- list()
+temperature_list <- list()
 period_list <- list()
 species_list <- list()
 weight_before <- list()
 weight_after <- list()
 
-for(i in 1:nrow(master)){
-  if(master$ID[i] %in% deathMeta$ID){
+original_master <- na.omit(original_master)
+
+for(i in 1:nrow(original_master)){
+  if(original_master$ID[i] %in% deathMeta$ID){
     
   }
   else{
-    ID_list <- append(ID_list, master$ID[i])
-    trial_list <- append(trial_list, master$Trial[i])
-    period_list <- append(period_list, master$Period[i])
-    species_list <- append(species_list, master$Species[i])
-    weight_before <- append(weight_before, master$WW[i])
-    weight_after <- append(weight_after, checkout$WW[which(checkout$ID == master$ID[i])])
+    ID_list <- append(ID_list, original_master$ID[i])
+    temperature_list <- append(temperature_list, original_master$Temperature[i])
+    period_list <- append(period_list, original_master$Period[i])
+    species_list <- append(species_list, original_master$Species[i])
+    weight_before <- append(weight_before, original_master$WW[i])
+    weight_after <- append(weight_after, checkout$WW[which(checkout$ID == original_master$ID[i])])
   }
 }
 
 weight_df <- data.frame(
   ID = unlist(I(ID_list)),
-  Trial = unlist(I(trial_list)),
+  Temperature = unlist(I(temperature_list)),
   Period = unlist(I(period_list)),
   species = unlist(I(species_list)),
   weight_before = unlist(I(weight_before)),
@@ -1312,5 +1341,5 @@ ggplot(weight_df, aes(x = as.factor(species), y = as.numeric(dif), fill = specie
                                "Hemigrapsus" = "darkred",
                                "Irroratus" = "darkorange"))+
   geom_hline(yintercept = 0, color = "red", linetype = "dashed", size = 0.5) + ggtitle("Weight change of each species over the whole experiment")+
-  facet_wrap(~Trial)+xlab("Species") + ylab("Weight Change (g)")
+  facet_wrap(~as.factor(Temperature))+xlab("Species") + ylab("Weight Change (g)")
 ```
