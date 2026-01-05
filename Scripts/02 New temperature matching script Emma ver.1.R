@@ -52,7 +52,7 @@
   
   # Convert timestamp column in File 2 to appropriate format
   #CHANGE BASED ON NUMBER OF INPUTS*******************************************
-  colnames(file2)=c("timestamp","0", "1")
+  colnames(file2)=c("timestamp","0")
   
   # Convert ISO time to ymd_hms format
   file2$timestamp = gsub("(\\+|-)\\d{2}:\\d{2}$", "", file2$timestamp)

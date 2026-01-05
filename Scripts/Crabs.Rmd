@@ -912,7 +912,7 @@ summary(mod)
 
 -For zero-inflated gamma models, I converted them to just 0 instead of .001.
 
-#### All Censor Model (censor model) 
+#### All Censor Model (censor model)
 
 -I fit 4 types of models and dredged them to find the best ones.
 
@@ -952,7 +952,7 @@ summary(mod)
 
 ### I then went back to model each species for the inclusive model (modeling inclusive now)
 
-#### All DATA MODEL (inclusive model) 
+#### All DATA MODEL (inclusive model)
 
 \- I tried 4 types of models and dredged to find no good models!
 
