@@ -14,7 +14,7 @@
   #The script will merge all the data from all the output files into a single "fulldata" file
   
   folder <-  "/Users/chanceyan/Documents/R/ThesisCrab/CrabHRData/"
-  trialname<- "Crab_Trial16_17up_Ci" #this should match the name of the temperature data file
+  trialname<- "Crab_Trial22_17up_Cm" #this should match the name of the temperature data file
   file2=read.csv(paste(paste(folder, trialname, sep=''),'.csv', sep=''))
   # List all files in the folder
   files <- list.files(folder)
