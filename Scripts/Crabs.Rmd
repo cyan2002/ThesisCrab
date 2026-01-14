@@ -235,10 +235,10 @@ censor$amount.eaten <- ifelse(censor$amount.eaten < 0, 0, censor$amount.eaten)
 censor <- censor[is.na(censor$Date.x) | !(censor$ID %in% deathMeta$ID),]
 
 
-censor <- censor %>% filter(!grepl("DI", Notes.x))
-censor <- censor %>% filter(!grepl("ADDI", Notes.x))
-censor <- censor %>% filter(!grepl("RE", Notes.x))
-censor <- censor %>% filter(!grepl("molted", Notes.x))
+censor <- censor %>%dplyr::filter(!grepl("DI", Notes.x))
+censor <- censor %>%dplyr::filter(!grepl("ADDI", Notes.x))
+censor <- censor %>%dplyr::filter(!grepl("RE", Notes.x))
+censor <- censor %>%dplyr::filter(!grepl("molted", Notes.x))
 
 censor$proportion.eaten <- censor$amount.eaten / censor$WW
 censor <- subset(censor, !is.na(censor$proportion.eaten))
