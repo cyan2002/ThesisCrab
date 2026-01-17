@@ -14,7 +14,7 @@
   #The script will merge all the data from all the output files into a single "fulldata" file
   
   folder <-  "/Users/chanceyan/Documents/R/ThesisCrab/CrabHRData/"
-  trialname<- "Crab_Trial22_17up_Cm" #this should match the name of the temperature data file
+  trialname<- "Crab_Trial20_17up_Ci" #this should match the name of the temperature data file
   file2=read.csv(paste(paste(folder, trialname, sep=''),'.csv', sep=''))
   # List all files in the folder
   files <- list.files(folder)
@@ -33,6 +33,7 @@
   file1 <- Reduce(function(x, y) merge(x, y, all = TRUE), matching_file)
   
   # Convert date and start_time columns to appropriate formats
+  #must change format by what the dates are.
   file1$date <- ymd_hms(file1$time)
   file1$start_time <- as.numeric(file1$start)
   file1$end_time <- as.numeric(file1$end)
@@ -52,7 +53,7 @@
   
   # Convert timestamp column in File 2 to appropriate format
   #CHANGE BASED ON NUMBER OF INPUTS*******************************************
-  colnames(file2)=c("timestamp","0")
+  colnames(file2)=c("timestamp","0", "1")
   
   # Convert ISO time to ymd_hms format
   file2$timestamp = gsub("(\\+|-)\\d{2}:\\d{2}$", "", file2$timestamp)

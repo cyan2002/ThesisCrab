@@ -12,7 +12,7 @@ library(signal)
 
 # Change path below to the folder containing your converted raw data for a particular trial
 
-path <- "/Users/chanceyan/Documents/R/ThesisCrab/CrabHRData/Crab_Trial1_17up_Hs_converted/"
+path <- "/Users/chanceyan/Documents/R/ThesisCrab/CrabHRData/Crab_Trial20_17up_Ci_converted/"
 
 files <- list.files(path)
 dfs <- lapply(paste(path, files, sep="/"), read.table)
