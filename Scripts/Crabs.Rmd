@@ -1073,31 +1073,31 @@ I'll first model all the data in the censor model (all species). I'm trying zero
 ```{R, echo=FALSE,fig.keep='all', fig.width=7, fig.height=5, warning = FALSE}
 #GLM gamma and normal have poor fits
 #dredge does not return any favorable models with temperature
-all.mod.glm.normal <- glm(proportion.eaten ~ Species.x*Temperature*Period, data = finalEatCensor, na.action = "na.fail")
+#all.mod.glm.normal <- glm(proportion.eaten ~ Species.x*Temperature*Period, data = finalEatCensor, na.action = "na.fail")
 #dredge(all.mod.glm.normal)
 
-best.mod.glm.normal <- glm(proportion.eaten ~ Species.x*Period, data = finalEatCensor, na.action = "na.fail")
-par(mfrow = c(2,2))
-plot(best.mod.glm.normal, main = "Normal GLM for all censor data")
-finalEatCensornozero <- finalEatCensor
-finalEatCensornozero$proportion.eaten <- ifelse(finalEatCensornozero$proportion.eaten <= 0, .001, finalEatCensornozero$proportion.eaten)
+#best.mod.glm.normal <- glm(proportion.eaten ~ Species.x*Period, data = finalEatCensor, na.action = "na.fail")
+#par(mfrow = c(2,2))
+#plot(best.mod.glm.normal, main = "Normal GLM for all censor data")
+#finalEatCensornozero <- finalEatCensor
+#finalEatCensornozero$proportion.eaten <- ifelse(finalEatCensornozero$proportion.eaten <= 0, .001, finalEatCensornozero$proportion.eaten)
 #all.mod.glm.normal <- glm(proportion.eaten ~ Species.x*Temperature*Period, data = finalEatCensornozero, family = Gamma(link = "log"), na.action = "na.fail")
 #best.mod.glm.normal <- glm(proportion.eaten ~ Species.x*Temperature, data = finalEatCensor, na.action = "na.fail")
 #plot(best.mod.glm.normal)
-all.mod.glm.normal <- glm(proportion.eaten ~ Species.x*Temperature*Period, data = finalEatCensornozero, family = Gamma(link = "inverse"), na.action = "na.fail")
-par(mfrow = c(2,2))
-plot(best.mod.glm.normal, main = "Gamma GLM for all censor data")
+#all.mod.glm.normal <- glm(proportion.eaten ~ Species.x*Temperature*Period, data = finalEatCensornozero, family = Gamma(link = "inverse"), na.action = "na.fail")
+#par(mfrow = c(2,2))
+#plot(best.mod.glm.normal, main = "Gamma GLM for all censor data")
 #best.mod.glm.normal <- glm(proportion.eaten ~ Species.x*Temperature, data = finalEatCensor, na.action = "na.fail")
 
 
 
 #Trying zero-inflated gamma model
-all.ZIglm <- glmmTMB(proportion.eaten ~ Species.x*Temperature*Period, data = finalEatCensor, ziformula = ~1, family = ziGamma((link= "inverse")), na.action = "na.fail")
+#all.ZIglm <- glmmTMB(proportion.eaten ~ Species.x*Temperature*Period, data = finalEatCensor, ziformula = ~1, family = ziGamma((link= "inverse")), na.action = "na.fail")
 #dredge(all.ZIglm)
-best.mod <- all.ZIglm <- glmmTMB(proportion.eaten ~ Species.x*Temperature, data = finalEatCensor, ziformula = ~1, family = ziGamma((link= "inverse")), na.action = "na.fail")
-ZIglm.resids <- simulateResiduals(best.mod)
-cat("Zero-inflated Gamma for all censor data")
-plot(ZIglm.resids)
+#best.mod <- all.ZIglm <- glmmTMB(proportion.eaten ~ Species.x*Temperature, data = finalEatCensor, ziformula = ~1, family = ziGamma((link= "inverse")), na.action = "na.fail")
+#ZIglm.resids <- simulateResiduals(best.mod)
+#cat("Zero-inflated Gamma for all censor data")
+#plot(ZIglm.resids)
 
 #all.ZIglm <- glmmTMB(proportion.eaten ~ Species.x*Temperature*Period, data = finalEatCensor, ziformula = ~Temperature, family = ziGamma((link= "inverse")), na.action = "na.fail")
 #dredge(all.ZIglm)
@@ -1105,12 +1105,72 @@ plot(ZIglm.resids)
 #ZIglm.resids <- simulateResiduals(best.mod)
 #plot(ZIglm.resids)
 #trying zero-inflated normal model
-all.ZIglm <- glmmTMB(proportion.eaten ~ Species.x*Temperature*Period, data = finalEatCensor, ziformula = ~1, na.action = "na.fail")
+#all.ZIglm <- glmmTMB(proportion.eaten ~ Species.x*Temperature*Period, data = finalEatCensor, ziformula = ~1, na.action = "na.fail")
 #dredge(all.ZIglm)
-best.mod <- glmmTMB(proportion.eaten ~ Species.x*Temperature, data = finalEatCensor, ziformula = ~1, na.action = "na.fail")
-ZIglm.resids <- simulateResiduals(best.mod)
-cat("Zero-inflated normal for all censor data")
-plot(ZIglm.resids)
+#best.mod <- glmmTMB(proportion.eaten ~ Species.x*Temperature, data = finalEatCensor, ziformula = ~1, na.action = "na.fail")
+#ZIglm.resids <- simulateResiduals(best.mod)
+#cat("Zero-inflated normal for all censor data")
+#plot(ZIglm.resids)
+
+#here begins CHATGPT models (meeting with Brian)
+sum(finalEatCensor$proportion.eaten == 0)
+
+finalEatCensor$binaryfed <- ifelse(finalEatCensor$amount.eaten > 0, 1, 0)
+finalEatCensor$logmass <- log(finalEatCensor$WW)
+finalEatCensor$log_mass_ws <- ave(
+  finalEatCensor$logmass,
+  finalEatCensor$Species.x,
+  FUN = function(x) x - mean(x, na.rm = TRUE)
+)
+
+finalEatCensor$log_mass_bs <- ave(
+  finalEatCensor$logmass,
+  finalEatCensor$Species.x,
+  FUN = function(x) mean(x, na.rm = TRUE)
+)
+
+finalEatCensor$runID <- paste(finalEatCensor$Temperature, finalEatCensor$Period, sep = "_")
+library(glmmTMB)
+# Hurdle model: zeros vs positives (binomial) + positive consumption (Gamma)
+pos_model <- glmmTMB(
+  proportion.eaten ~ log_mass_ws*Species.x*Temperature +
+                (1 | ID) + (1 | runID),
+  family = Gamma(link = "log"),
+  data = subset(finalEatCensor, proportion.eaten > 0)
+)
+
+# Simulate DHARMa residuals
+sim_res_pos <- simulateResiduals(fittedModel = pos_model, n = 1000)
+
+# Basic diagnostic plots
+plot(sim_res_pos)                  # uniformity, QQ, residuals vs predicted
+plot(sim_res_pos, type = "predicted") # residuals vs fitted values
+
+# Test for over/underdispersion and zero-inflation
+testDispersion(sim_res_pos)
+testZeroInflation(sim_res_pos)  # should be low for positive model
+
+
+zero_model <- glmmTMB(
+  binaryfed ~ log_mass_ws + Species.x + Temperature +
+                  (1 | ID) + (1 | runID),
+  family = binomial,
+  data = finalEatCensor
+)
+
+# Simulate DHARMa residuals
+sim_res_zero <- simulateResiduals(fittedModel = zero_model, n = 1000)
+
+# Basic diagnostic plots
+plot(sim_res_zero)                  # uniformity, QQ, residuals vs predicted
+plot(sim_res_zero, type = "predicted") # residuals vs fitted values
+
+# Test for over/underdispersion and zero-inflation
+testDispersion(sim_res_zero)
+testZeroInflation(sim_res_zero)  # should be low for positive model
+
+summary(pos_model)
+summary(zero_model)
 ```
 
 I tried, zero inflated Gamma (inverse, log, identity) and GLM (identity, log, inverse) and no models returned a good fit Let's try modeling each species separately since they all have different distributions. We'll begin with rock crabs. I'll use zero inflated models since the distribution seems to be zero inflated.
@@ -1243,14 +1303,14 @@ I'll begin with modeling all the data as a whole same way I started with my cens
 
 ```{R, echo=FALSE,fig.keep='all', fig.width=7, fig.height=5, warning = FALSE}
 #finaleatinclusive
-hist(finalEatInclusive$proportion.eaten, main = "Distribution of the proportion eaten: Inclusive Model")
+#hist(finalEatInclusive$proportion.eaten, main = "Distribution of the proportion eaten: Inclusive Model")
 
-mod <- glm(proportion.eaten ~ Species.x*Period*Temperature, data = finalEatInclusive, na.action = "na.fail")
+#mod <- glm(proportion.eaten ~ Species.x*Period*Temperature, data = finalEatInclusive, na.action = "na.fail")
 #dredge(mod)
 
-mod1 <- glm(proportion.eaten ~ Temperature*Species.x, data = finalEatInclusive)
-par(mfrow = c(2,2))
-plot(mod1, main = "All inclusive model data: normal GLM")
+#mod1 <- glm(proportion.eaten ~ Temperature*Species.x, data = finalEatInclusive)
+#par(mfrow = c(2,2))
+#plot(mod1, main = "All inclusive model data: normal GLM")
 #mod2 <- glm(proportion.eaten ~ Temperature*Species.x*Period, data = finalEatInclusive)
 #par(mfrow = c(2,2))
 #plot(mod2)
@@ -1258,13 +1318,13 @@ plot(mod1, main = "All inclusive model data: normal GLM")
 #par(mfrow = c(2,2))
 #plot(mod3)
 
-finalEatInclusivenozero <- finalEatInclusive
-finalEatInclusivenozero$proportion.eaten <- ifelse(finalEatInclusive$proportion.eaten <= 0, .001, finalEatInclusive$proportion.eaten)
-mod1 <- glm(proportion.eaten ~ Temperature*Species.x, family = Gamma(link = "inverse"), data = finalEatInclusivenozero)
-par(mfrow = c(2,2))
-plot(mod1, main = "All inclusive model data: Gamma")
-cat("Summary output for the best GLM Gamma Inclusive model")
-summary(mod1)
+#finalEatInclusivenozero <- finalEatInclusive
+#finalEatInclusivenozero$proportion.eaten <- ifelse(finalEatInclusive$proportion.eaten <= 0, .001, finalEatInclusive$proportion.eaten)
+#mod1 <- glm(proportion.eaten ~ Temperature*Species.x, family = Gamma(link = "inverse"), data = finalEatInclusivenozero)
+#par(mfrow = c(2,2))
+#plot(mod1, main = "All inclusive model data: Gamma")
+#cat("Summary output for the best GLM Gamma Inclusive model")
+#summary(mod1)
 #mod2 <- glm(proportion.eaten ~ Temperature*Species.x*Period, family = Gamma(link = "inverse"), data = finalEatInclusivenozero)
 #par(mfrow = c(2,2))
 #plot(mod2)
@@ -1282,16 +1342,76 @@ summary(mod1)
 #par(mfrow = c(2,2))
 #plot(mod3)
 
-all.ZIglm <- glmmTMB(proportion.eaten ~ Species.x*Temperature*Period, data =finalEatInclusive, ziformula = ~Temperature, na.action = "na.fail")
+#all.ZIglm <- glmmTMB(proportion.eaten ~ Species.x*Temperature*Period, data =finalEatInclusive, ziformula = ~Temperature, na.action = "na.fail")
 #dredge(all.ZIglm)
 
-finalEatInclusivenozero <- finalEatInclusive
-finalEatInclusivenozero$proportion.eaten <- ifelse(finalEatInclusive$proportion.eaten < 0, 0, finalEatInclusive$proportion.eaten)
+#finalEatInclusivenozero <- finalEatInclusive
+#finalEatInclusivenozero$proportion.eaten <- ifelse(finalEatInclusive$proportion.eaten < 0, 0, finalEatInclusive$proportion.eaten)
 
-best.mod <- glmmTMB(proportion.eaten ~ Species.x*Temperature*Period, data = finalEatInclusivenozero, ziformula = ~Temperature, family = ziGamma(link = "inverse"), na.action = "na.fail")
-ZIglm.resids <- simulateResiduals(best.mod)
-cat("All inclusive model data: Zero-Inflation")
-plot(ZIglm.resids)
+#best.mod <- glmmTMB(proportion.eaten ~ Species.x*Temperature*Period, data = finalEatInclusivenozero, ziformula = ~Temperature, family = ziGamma(link = "inverse"), na.action = "na.fail")
+#ZIglm.resids <- simulateResiduals(best.mod)
+#cat("All inclusive model data: Zero-Inflation")
+#plot(ZIglm.resids)
+
+#here begins CHATGPT models (meeting with Brian)
+sum(finalEatInclusive$proportion.eaten == 0)
+
+finalEatInclusive$binaryfed <- ifelse(finalEatInclusive$amount.eaten > 0, 1, 0)
+finalEatInclusive$logmass <- log(finalEatInclusive$WW)
+finalEatInclusive$log_mass_ws <- ave(
+  finalEatInclusive$logmass,
+  finalEatInclusive$Species.x,
+  FUN = function(x) x - mean(x, na.rm = TRUE)
+)
+
+finalEatInclusive$log_mass_bs <- ave(
+  finalEatInclusive$logmass,
+  finalEatInclusive$Species.x,
+  FUN = function(x) mean(x, na.rm = TRUE)
+)
+
+finalEatInclusive$runID <- paste(finalEatInclusive$Temperature, finalEatInclusive$Period, sep = "_")
+library(glmmTMB)
+# Hurdle model: zeros vs positives (binomial) + positive consumption (Gamma)
+pos_model <- glmmTMB(
+  proportion.eaten ~ log_mass_ws*Species.x*Temperature +
+                (1 | ID) + (1 | runID),
+  family = Gamma(link = "log"),
+  data = subset(finalEatInclusive, proportion.eaten > 0)
+)
+
+# Simulate DHARMa residuals
+sim_res_pos <- simulateResiduals(fittedModel = pos_model, n = 1000)
+
+# Basic diagnostic plots
+plot(sim_res_pos)                  # uniformity, QQ, residuals vs predicted
+plot(sim_res_pos, type = "predicted") # residuals vs fitted values
+
+# Test for over/underdispersion and zero-inflation
+testDispersion(sim_res_pos)
+testZeroInflation(sim_res_pos)  # should be low for positive model
+
+
+zero_model <- glmmTMB(
+  binaryfed ~ log_mass_ws + Species.x + Temperature +
+                  (1 | ID) + (1 | runID),
+  family = binomial,
+  data = finalEatInclusive
+)
+
+# Simulate DHARMa residuals
+sim_res_zero <- simulateResiduals(fittedModel = zero_model, n = 1000)
+
+# Basic diagnostic plots
+plot(sim_res_zero)                  # uniformity, QQ, residuals vs predicted
+plot(sim_res_zero, type = "predicted") # residuals vs fitted values
+
+# Test for over/underdispersion and zero-inflation
+testDispersion(sim_res_zero)
+testZeroInflation(sim_res_zero)  # should be low for positive model
+
+summary(pos_model)
+summary(zero_model)
 
 ```
 
