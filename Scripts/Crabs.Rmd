@@ -1175,7 +1175,7 @@ summary(zero_model)
 
 I tried, zero inflated Gamma (inverse, log, identity) and GLM (identity, log, inverse) and no models returned a good fit Let's try modeling each species separately since they all have different distributions. We'll begin with rock crabs. I'll use zero inflated models since the distribution seems to be zero inflated.
 
-```{R, echo=FALSE,fig.keep='all', fig.width=7, fig.height=5, warning = FALSE}
+```{R, include = FALSE, echo=FALSE,fig.keep='all', fig.width=7, fig.height=5, warning = FALSE}
 #Rock crab - censor model -----------------------------------------------------
 
 #distribution seems to be zero-inflated with a normal distribution
@@ -1216,7 +1216,7 @@ Rock crabs didn't have a great model. The normal GLM model was an okay fit, but 
 
 Next is green crabs. I dredged the full model then compared all the top models within 2 delta units of the top across a normal GLM.
 
-```{R, echo=FALSE,fig.keep='all', fig.width=7, fig.height=5, warning = FALSE}
+```{R, include = FALSE,echo=FALSE,fig.keep='all', fig.width=7, fig.height=5, warning = FALSE}
 #Green crab - Normal -----------------------------------------------------------
 censorsub <- subset(finalEatCensor, finalEatCensor$Species.x == "CM")
 hist(censorsub$proportion.eaten, main = "Distribution for CM Censor Model", xlab = "Proportion Consumed")
@@ -1250,7 +1250,7 @@ Green crabs had 3 great models, interaction (between period and temperature), ad
 
 Moving on to the shore crabs. I'll first try a Gamma since it seems slightly skewed then a normal GLM.
 
-```{R, echo=FALSE,fig.keep='all', fig.width=7, fig.height=5, warning = FALSE}
+```{R, include = FALSE,echo=FALSE,fig.keep='all', fig.width=7, fig.height=5, warning = FALSE}
 #Shore crab - skew/normal ------------------------------------------------------
 censorsub <- subset(finalEatCensor, finalEatCensor$Species.x == "HS")
 hist(censorsub$proportion.eaten, main = "Distribution of the censor model for shore crab", xlab = "Proportion eaten")
@@ -1419,7 +1419,7 @@ The fits aren't good. The normal GLMs have an almost good fit, but by modeling e
 
 I'll now move to modeling shore crabs which have a normal distribution, so I'll try normal GLMs.
 
-```{R, echo=FALSE,fig.keep='all', fig.width=7, fig.height=5, warning = FALSE}
+```{R, include = FALSE,echo=FALSE,fig.keep='all', fig.width=7, fig.height=5, warning = FALSE}
 #INCLUSIVE MODEL----------------------------------------------------------------
 
 #I can't seem to get the censor model to fit well for rock crabs, so let's model the inclusive model to maybe get a better fit?
@@ -1455,7 +1455,7 @@ Shore crabs had two good models; however, one included period and an interaction
 
 Next up is green crabs. Again, their distribution is normal, so I'll try using normal GLMs.
 
-```{R, echo=FALSE,fig.keep='all', fig.width=7, fig.height=5, warning = FALSE}
+```{R, include = FALSE,echo=FALSE,fig.keep='all', fig.width=7, fig.height=5, warning = FALSE}
 #CM-----------------------------------------------------------------------------
 
 inclusivesub <- subset(finalEatInclusive, finalEatInclusive$Species.x == "CM")
@@ -1486,7 +1486,7 @@ Green crabs had a good fitting model. The temperature had no effect on proportio
 
 Next is rock crabs. Their distribution is a bit odd? I'll try normal and Gamma first then zero-inflated if I have to.
 
-```{R, echo=FALSE,fig.keep='all', fig.width=7, fig.height=5, warning = FALSE}
+```{R, include = FALSE,echo=FALSE,fig.keep='all', fig.width=7, fig.height=5, warning = FALSE}
 #CI-----------------------------------------------------------------------------
 inclusivesub <- subset(finalEatInclusive, finalEatInclusive$Species.x == "CI")
 hist(inclusivesub$proportion.eaten, main = "Distribution for inclusive model rock crabs")
