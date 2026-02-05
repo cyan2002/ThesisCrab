@@ -240,6 +240,14 @@ censor <- censor %>%dplyr::filter(!grepl("ADDI", Notes.x))
 censor <- censor %>%dplyr::filter(!grepl("RE", Notes.x))
 censor <- censor %>%dplyr::filter(!grepl("molted", Notes.x))
 
+list <- c("DI", "ADDI", "RE", "molted")
+
+removed <- censor %>%
+  dplyr::filter(grepl(paste(list, collapse = "|"), Notes.x))
+
+removed <- censor %>%dplyr::filter(grepl("DI", Notes.x))
+unique(removed$ID)
+
 censor$proportion.eaten <- censor$amount.eaten / censor$WW
 censor <- subset(censor, !is.na(censor$proportion.eaten))
 ```
@@ -332,12 +340,22 @@ ggplot(mastergraph, aes(x = Temperature, y = proportion, fill = dead)) + geom_co
 mastergraph <- master
 mastergraph$dead <- factor(mastergraph$dead, levels = c(0,1))
 
-ggplot(mastergraph, aes(x = Temperature, y = dead)) + geom_point(position = position_jitter(width = 0.005)) +
-  geom_smooth(aes(group = 1), method = "loess", se = FALSE) +
-  xlab("Temperature")+
-  ylab("Count")+
-  facet_wrap(~Species)+
-  ggtitle("The counts of dead vs alive individuals")
+ggplot(mastergraph, aes(x = Temperature, y = dead, color = Species)) + geom_point(position = position_jitter(width = 0.2)) +
+  geom_smooth(aes(group = 1), method = "lm", se = FALSE) +
+  xlab("Temperature (°C)")+
+  ylab("Binary Indicating Dead (0) or Alive (1)")+
+  facet_wrap(~Species, labeller = as_labeller(c("Carcinus" = "Green Crab", "Hemigrapsus" = "Asian Shore Crab", "Irroratus" = "Rock Crab")))+
+  ggtitle("The counts of dead vs alive individuals") + 
+  scale_color_manual(values = c("Carcinus" = "darkgreen",
+                                    "Hemigrapsus" = "darkred",
+                                    "Irroratus" = "darkorange"), labels = c("Green Crab", "Asian Shore Crab", "Rock Crab")) + theme_classic() +
+    theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5)) +
+  theme(
+  legend.box.background = element_rect(color = "black", size = 1, linetype = "solid"),
+  legend.box.margin = margin(t = 5, r = 5, b = 5, l = 5, unit = "mm")
+) +
+  scale_x_continuous(breaks = c(18, 20, 22, 24, 26))
+  
 
 ```
 
@@ -351,6 +369,7 @@ all.mod <- brglm(dead ~ Temperature*Species, family = binomial, data = master, n
 #the best mod is inclusion of Species and Trial with no interaction
 best.mod <- brglm(dead ~ Temperature + Species, family = binomial, data = master, na.action = "na.fail")
 summary(best.mod)
+summary(all.mod)
 #what's the best way to create diagnostic plots for this?
 
 master$Species <- factor(master$Species)
@@ -372,6 +391,8 @@ ggplot(master, aes(x = Temperature, y = dead, color = Species)) +
 That model doesn't really describe that the shore crab and green crab rate are 0. The general temperature variable is across the whole data set and not species specific. I can tell based off the raw data that there are only two death points for green crabs and zero for shore crab. Therefore it might not be necessary to model them. Instead, here I'll just model rock crabs. The following is the best rock crab model summary and the predicted values
 
 ```{R echo=FALSE, warning=FALSE, message = FALSE, fig.width=7, fig.height=5}
+
+citation("brglm")
 #just Cancer irroratus
 holddf <- subset(master, master$Species == "Irroratus")
 all.mod <- brglm(dead ~ Temperature, family = binomial, data = holddf, na.action = "na.fail")
@@ -383,11 +404,55 @@ newdat <- data.frame(Temperature = seq(min(holddf$Temperature), max(holddf$Tempe
 
 newdat$pred <- predict(best.mod, newdata = newdat, type = "response")
 
+pred_link <- predict(
+  best.mod,
+  newdata = newdat,
+  type = "link",
+  se.fit = TRUE
+)
+
+newdat$fit <- pred_link$fit
+newdat$se  <- pred_link$se.fit
+
+newdat$lwr <- plogis(newdat$fit - 1.96 * newdat$se)
+newdat$upr <- plogis(newdat$fit + 1.96 * newdat$se)
+newdat$pred <- plogis(newdat$fit)
+
+
+
 ggplot(holddf, aes(x = Temperature, y = dead)) +
-  geom_point(position = position_jitter(height = 0.05), alpha = 0.6) +
-  geom_line(data = newdat, aes(x = Temperature, y = pred), color = "darkorange", linewidth = 1) +
-  scale_y_continuous(limits = c(0, 1)) + 
-  ggtitle("Predicted number of dead (0) vs alive (1) Atlantic rock crabs")
+  geom_point(
+    position = position_jitter(height = 0.05),
+    alpha = 0.6,
+    color = "darkorange"
+  ) +
+  geom_ribbon(
+    data = newdat,
+    aes(x = Temperature, ymin = lwr, ymax = upr),
+    fill = "darkorange",
+    alpha = 0.25,
+    inherit.aes = FALSE
+  ) +
+  geom_line(
+    data = newdat,
+    aes(x = Temperature, y = pred),
+    linewidth = 1,
+    color = "darkorange"
+  ) +
+  xlab("Temperature (°C)") +
+  ylab("Percentage Alive") +
+  ggtitle("Predicted number of dead vs alive Atlantic rock crabs") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 15, face = "bold", hjust = 0.5)
+  ) +
+  scale_x_continuous(breaks = c(18, 20, 22, 24, 26)) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = c(0, 0.25, 0.5, 0.75, 1),
+    labels = scales::percent_format(accuracy = 1)
+  )
+
 ```
 
 ### Acclimation: Are there differences in proportion eaten across week number for each species, temperature regime and time period?
@@ -1130,33 +1195,68 @@ finalEatCensor$log_mass_bs <- ave(
 )
 
 finalEatCensor$runID <- paste(finalEatCensor$Temperature, finalEatCensor$Period, sep = "_")
+
 library(glmmTMB)
+
+data = subset(finalEatCensor, proportion.eaten > 0)
 # Hurdle model: zeros vs positives (binomial) + positive consumption (Gamma)
 pos_model <- glmmTMB(
-  proportion.eaten ~ log_mass_ws*Species.x*Temperature +
+  proportion.eaten ~ Species.x*as.factor(Temperature) + as.factor(Period) + 
                 (1 | ID) + (1 | runID),
-  family = Gamma(link = "log"),
-  data = subset(finalEatCensor, proportion.eaten > 0)
+  family = Gamma(link = "inverse"),
+  data = data, na.action = "na.fail"
 )
+
+dredge(pos_model)
+
+subcensor <- subset(finalEatCensor, finalEatCensor$proportion.eaten > 0)
+
+pos_model2 <- glmmTMB(
+  proportion.eaten ~ Species.x*as.factor(Temperature) + 
+                (1 | ID) + (1 | runID),
+  family = Gamma(link = "inverse"),
+  data = data, na.action = "na.fail"
+)
+
+pos_model3 <- glmmTMB(
+  proportion.eaten ~ Species.x*as.factor(Temperature) + as.factor(Period)  + 
+                (1 | ID) + (1 | runID),
+  family = Gamma(link = "inverse"),
+  data = data, na.action = "na.fail"
+)
+
+dredge(pos_model3)
+
+ggplot(aes(x = as.factor(Temperature), y = proportion.eaten, fill = Species.x), data = subcensor) + geom_boxplot() + facet_wrap(~Species.x) + scale_fill_manual(values = c("CI" = "darkorange", "CM" = "darkgreen", "HS" = "darkred"))
 
 # Simulate DHARMa residuals
 sim_res_pos <- simulateResiduals(fittedModel = pos_model, n = 1000)
+sim_res_pos2 <- simulateResiduals(fittedModel = pos_model2, n = 1000)
+sim_res_pos3 <- simulateResiduals(fittedModel = pos_model3, n = 1000)
 
 # Basic diagnostic plots
 plot(sim_res_pos)                  # uniformity, QQ, residuals vs predicted
-plot(sim_res_pos, type = "predicted") # residuals vs fitted values
+plot(sim_res_pos2)
+plot(sim_res_pos3)
 
 # Test for over/underdispersion and zero-inflation
 testDispersion(sim_res_pos)
 testZeroInflation(sim_res_pos)  # should be low for positive model
+testDispersion(sim_res_pos2)
+testZeroInflation(sim_res_pos2)  # should be low for positive model
+testDispersion(sim_res_pos3)
+testZeroInflation(sim_res_pos3)  # should be low for positive model
 
 
 zero_model <- glmmTMB(
-  binaryfed ~ log_mass_ws + Species.x + Temperature +
+  binaryfed ~ Species.x*Temperature + Period + 
                   (1 | ID) + (1 | runID),
   family = binomial,
   data = finalEatCensor
 )
+
+ggplot(finalEatCensor, aes(x = as.factor(Temperature), fill = as.factor(binaryfed))) +
+  facet_wrap(~Species.x) + geom_bar() + scale_fill_manual(values = c("0" = "darkred", "1" = "darkgreen"))
 
 # Simulate DHARMa residuals
 sim_res_zero <- simulateResiduals(fittedModel = zero_model, n = 1000)
@@ -1171,6 +1271,7 @@ testZeroInflation(sim_res_zero)  # should be low for positive model
 
 summary(pos_model)
 summary(zero_model)
+
 ```
 
 I tried, zero inflated Gamma (inverse, log, identity) and GLM (identity, log, inverse) and no models returned a good fit Let's try modeling each species separately since they all have different distributions. We'll begin with rock crabs. I'll use zero inflated models since the distribution seems to be zero inflated.
