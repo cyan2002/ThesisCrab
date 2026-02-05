@@ -534,7 +534,18 @@ ggplot(summary_inclusive, aes(x = as.numeric(WeekNum), y = mean, color = Species
                      "CM_1" = "darkgreen",
                      "CM_2" = "green3",
                      "HS_1" = "darkred",
-                     "HS_2" = "red3"))
+                     "HS_2" = "red3"),
+                     labels = c("CI_1" = "Period 1 Rock Crab",
+                                "CI_2" = "Period 2 Rock Crab",
+                                "CM_1" = "Period 1 Green Crab",
+                                "CM_2" = "Period 2 Green Crab",
+                                "HS_1" = "Period 1 Asian Shore Crab",
+                                "HS_2" = "Period 2 Asian Shore Crab"),
+                     name = "Species/Period")+
+  theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5)) +
+  xlab("Week Number")+
+  scale_x_continuous(breaks = c(1, 2, 3))+
+  ylab("Average proportion of body weight eaten (%)")
 
 #CENSOR MODEL
 ggplot(summary_censor, aes(x = as.numeric(WeekNum), y = mean, color = SpeciesPeriod)) + 
@@ -548,7 +559,18 @@ ggplot(summary_censor, aes(x = as.numeric(WeekNum), y = mean, color = SpeciesPer
                      "CM_1" = "darkgreen",
                      "CM_2" = "green3",
                      "HS_1" = "darkred",
-                     "HS_2" = "red3"))
+                     "HS_2" = "red3"),
+                     labels = c("CI_1" = "Period 1 Rock Crab",
+                                "CI_2" = "Period 2 Rock Crab",
+                                "CM_1" = "Period 1 Green Crab",
+                                "CM_2" = "Period 2 Green Crab",
+                                "HS_1" = "Period 1 Asian Shore Crab",
+                                "HS_2" = "Period 2 Asian Shore Crab"),
+                     name = "Species/Period")+
+  theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5)) +
+  xlab("Week Number")+
+  scale_x_continuous(breaks = c(1, 2, 3))+
+  ylab("Average proportion of body weight eaten (%)")
 
 #going forward, I'll do data exploration with the censor model since the graphs looked very similar.
 
@@ -591,33 +613,86 @@ par(mfrow=c(2,2))
 
 #Temperature 18 - #No differences between week numbers and model fits well
 censorsub <- subset(censor, censor$Species.x == "CM" & censor$Temperature == 18)
-mod <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
+mod <- glm(proportion.eaten ~ as.factor(WeekNum)*as.factor(Period), data = censorsub)
 plot(mod, main = "18C, diagnostic plots for CM")
 summary(mod)
+emm <- emmeans(mod, ~as.factor(WeekNum) | as.factor(Period))
+pairs_res_18 <- pairs(emm, adjust = "tukey")
+pvals_df_18 <- as.data.frame(pairs_res_18)
+pvals_df_18$contrast <- as.character(pvals_df_18$contrast)
+
+pvals_df_18 <- pvals_df_18 %>%
+    separate(contrast, into = c("comp1", "comp2"), sep = " - ")
+
+pvals_df_18$Temperature <- as.factor(18)
+
 
 #Temperature 20 - #No differences between week numbers and model fits well
 censorsub <- subset(censor, censor$Species.x == "CM" & censor$Temperature == 20)
-mod <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
+mod <- glm(proportion.eaten ~ as.factor(WeekNum)*as.factor(Period), data = censorsub)
 plot(mod, main = "20C, diagnostic plots for CM")
 summary(mod)
+emm <- emmeans(mod, ~as.factor(WeekNum) | as.factor(Period))
+pairs_res_20 <- pairs(emm, adjust = "tukey")
+pvals_df_20 <- as.data.frame(pairs_res_20)
+pvals_df_20$contrast <- as.character(pvals_df_20$contrast)
+
+pvals_df_20 <- pvals_df_20 %>%
+    separate(contrast, into = c("comp1", "comp2"), sep = " - ")
+
+pvals_df_20$Temperature <- as.factor(20)
 
 #Temperature 22 - #No differences between week numbers and model fits well
 censorsub <- subset(censor, censor$Species.x == "CM" & censor$Temperature == 22)
-mod <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
+mod <- glm(proportion.eaten ~ as.factor(WeekNum)*as.factor(Period), data = censorsub)
 plot(mod, main = "22C, diagnostic plots for CM")
 summary(mod)
+emm <- emmeans(mod, ~as.factor(WeekNum) | as.factor(Period))
+pairs_res_22 <- pairs(emm, adjust = "tukey")
+pvals_df_22 <- as.data.frame(pairs_res_22)
+pvals_df_22$contrast <- as.character(pvals_df_22$contrast)
+
+pvals_df_22 <- pvals_df_22 %>%
+    separate(contrast, into = c("comp1", "comp2"), sep = " - ")
+
+pvals_df_22$Temperature <- as.factor(22)
 
 #Temperature 24 - #No differences between week numbers and model fits well
 censorsub <- subset(censor, censor$Species.x == "CM" & censor$Temperature == 24)
-mod <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
+mod <- glm(proportion.eaten ~ as.factor(WeekNum)*as.factor(Period), data = censorsub)
 plot(mod, main = "24C, diagnostic plots for CM")
 summary(mod)
+emm <- emmeans(mod, ~as.factor(WeekNum) | as.factor(Period))
+pairs_res_24 <- pairs(emm, adjust = "tukey")
+pvals_df_24 <- as.data.frame(pairs_res_24)
+pvals_df_24$contrast <- as.character(pvals_df_24$contrast)
+
+pvals_df_24 <- pvals_df_24 %>%
+    separate(contrast, into = c("comp1", "comp2"), sep = " - ")
+
+pvals_df_24$Temperature <- as.factor(24)
 
 #Temperature 26 - #No differences between week numbers and model fits well
 censorsub <- subset(censor, censor$Species.x == "CM" & censor$Temperature == 26)
-mod <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
+mod <- glm(proportion.eaten ~ as.factor(WeekNum)*as.factor(Period), data = censorsub)
 plot(mod, main = "26C, diagnostic plots for CM")
 summary(mod)
+emm <- emmeans(mod, ~as.factor(WeekNum) | as.factor(Period))
+pairs_res_26 <- pairs(emm, adjust = "tukey")
+pvals_df_26 <- as.data.frame(pairs_res_26)
+pvals_df_26$contrast <- as.character(pvals_df_26$contrast)
+
+pvals_df_26 <- pvals_df_26 %>%
+    separate(contrast, into = c("comp1", "comp2"), sep = " - ")
+
+pvals_df_26$Temperature <- as.factor(26)
+
+heat_df <- rbind(pvals_df_18, pvals_df_20, pvals_df_22, pvals_df_24, pvals_df_26)
+
+heat_df$signfi <- ifelse(heat_df$p.value < .05, "sig", "ns")
+
+ggplot(heat_df, aes(x = comp1, y = comp2, fill = signfi)) + geom_tile() + facet_grid(Period~Temperature) + ggtitle("Differences between Week Number Within Periods for Green Crabs")
+
 
 #For green crabs, there are no differences between week number within each Temperature treatment
 
@@ -631,7 +706,7 @@ par(mfrow=c(2,2))
 
 #Temperature 18 - Ok fit... let's try a Gamma family
 censorsub <- subset(censor, censor$Species.x == "HS" & censor$Temperature == 18)
-mod1 <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
+mod1 <- glm(proportion.eaten ~ as.factor(WeekNum)*as.factor(Period), data = censorsub)
 plot(mod1, main = "18C, Diagnostic plots for HS")
 summary(mod1)
 
@@ -647,46 +722,95 @@ summary(mod1)
 #summary(mod3)
 #AIC(mod1, mod2, mod3)
 
+library(emmeans)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
 #mod1 is best that says there are no differences between groups
-emm <- emmeans(mod1, ~as.factor(WeekNum))
-pairs(emm, adjust = "tukey")
+emm <- emmeans(mod1, ~as.factor(WeekNum) | as.factor(Period))
+pairs_res_18 <- pairs(emm, adjust = "tukey")
+pvals_df_18 <- as.data.frame(pairs_res_18)
+pvals_df_18$contrast <- as.character(pvals_df_18$contrast)
+
+pvals_df_18 <- pvals_df_18 %>%
+    separate(contrast, into = c("comp1", "comp2"), sep = " - ")
+
+pvals_df_18$Temperature <- as.factor(18)
+
 
 #mod1 is the best (normal model)
 #after trying all of them, they all say the same thing - no differences between weeks
 
 #Temperature 20 - Fit is OK, Week 2 and 3 are not different, but week 1 is different from week 2 and 3
 censorsub <- subset(censor, censor$Species.x == "HS" & censor$Temperature == 20)
-mod <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
+mod <- glm(proportion.eaten ~ as.factor(WeekNum)*as.factor(Period), data = censorsub)
 plot(mod, main = "20C Diagnostic plots for HS")
 summary(mod)
-emm <- emmeans(mod, ~as.factor(WeekNum))
-pairs(emm, adjust = "tukey")
+
+emm <- emmeans(mod, ~as.factor(WeekNum) | as.factor(Period))
+pairs_res_20 <- pairs(emm, adjust = "tukey")
+pvals_df_20 <- as.data.frame(pairs_res_20)
+pvals_df_20$contrast <- as.character(pvals_df_20$contrast)
+
+pvals_df_20 <- pvals_df_20 %>%
+    separate(contrast, into = c("comp1", "comp2"), sep = " - ")
+
+pvals_df_20$Temperature <- as.factor(20)
 
 #Temperature 22 - Fit is good, only difference is between week 2 and 3 - CAUTION WHEN DOING FINAL ANAYSIS - MIGHT AFFECT USING WEEK 2 AND 3
 censorsub <- subset(censor, censor$Species.x == "HS" & censor$Temperature == 22)
-mod <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
+mod <- glm(proportion.eaten ~ as.factor(WeekNum)*as.factor(Period), data = censorsub)
 par(mfrow = c(2,2))
 plot(mod, main = "22C Diagnostic plots for HS")
 summary(mod)
-emm <- emmeans(mod, ~as.factor(WeekNum))
-pairs(emm, adjust = "tukey")
+
+emm <- emmeans(mod, ~as.factor(WeekNum) | as.factor(Period))
+pairs_res_22 <- pairs(emm, adjust = "tukey")
+pvals_df_22 <- as.data.frame(pairs_res_22)
+pvals_df_22$contrast <- as.character(pvals_df_22$contrast)
+
+pvals_df_22 <- pvals_df_22 %>%
+    separate(contrast, into = c("comp1", "comp2"), sep = " - ")
+
+pvals_df_22$Temperature <- as.factor(22)
 
 #Temperature 24 - Fit is good, one outlier that ate almost half of it's body weight
 #no difference between week 1 and 2, but differences between 1-3 and 2-3
 censorsub <- subset(censor, censor$Species.x == "HS" & censor$Temperature == 24)
-mod <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
+mod <- glm(proportion.eaten ~ as.factor(WeekNum)*as.factor(Period), data = censorsub)
 plot(mod, main = "24C Diagnostic plots for HS")
 summary(mod)
-emm <- emmeans(mod, ~as.factor(WeekNum))
-pairs(emm, adjust = "tukey")
+emm <- emmeans(mod, ~as.factor(WeekNum) | as.factor(Period))
+pairs_res_24 <- pairs(emm, adjust = "tukey")
+pvals_df_24 <- as.data.frame(pairs_res_24)
+pvals_df_24$contrast <- as.character(pvals_df_24$contrast)
+
+pvals_df_24 <- pvals_df_24 %>%
+    separate(contrast, into = c("comp1", "comp2"), sep = " - ")
+
+pvals_df_24$Temperature <- as.factor(24)
 
 #Temperature 26 - Fit is good, 3 outliers, no differences among groups. 
 censorsub <- subset(censor, censor$Species.x == "HS" & censor$Temperature == 26)
-mod <- glm(proportion.eaten ~ as.factor(WeekNum), data = censorsub)
+mod <- glm(proportion.eaten ~ as.factor(WeekNum)*as.factor(Period), data = censorsub)
 plot(mod, main = "26C Diagnostic plots for HS")
 summary(mod)
-emm <- emmeans(mod, ~as.factor(WeekNum))
-pairs(emm, adjust = "tukey")
+emm <- emmeans(mod, ~as.factor(WeekNum) | as.factor(Period))
+pairs_res_26 <- pairs(emm, adjust = "tukey")
+pvals_df_26 <- as.data.frame(pairs_res_26)
+pvals_df_26$contrast <- as.character(pvals_df_26$contrast)
+
+pvals_df_26 <- pvals_df_26 %>%
+    separate(contrast, into = c("comp1", "comp2"), sep = " - ")
+
+pvals_df_26$Temperature <- as.factor(26)
+
+heat_df <- rbind(pvals_df_18, pvals_df_20, pvals_df_22, pvals_df_24, pvals_df_26)
+
+heat_df$signfi <- ifelse(heat_df$p.value < .05, "sig", "ns")
+
+ggplot(heat_df, aes(x = comp1, y = comp2, fill = signfi)) + geom_tile() + facet_grid(Period~Temperature) + ggtitle("Differences between Week Number Within Periods for Hemis")
 
 #there are differences between weeks 2 and 3 for some temperature treatments
 ```
@@ -712,54 +836,134 @@ censorsub <- subset(censor, censor$Species.x == "CI" & censor$Temperature == 18)
 #AIC(mod1, mod2, mod3, mod4)
 
 #the zero-inflated model is a good fit! no differences for zeros and continous values between the weeks
-ZIglm <- glmmTMB(proportion.eaten ~ as.factor(WeekNum), data = censorsub, ziformula = ~as.factor(WeekNum), family = ziGamma((link= "inverse")))
-ZIglm.resids <- simulateResiduals(ZIglm)
-cat("18C Diagnostic plots for CI")
-plot(ZIglm.resids)
-summary(ZIglm)
-emm <- emmeans(ZIglm, ~ as.factor(WeekNum), type = "response")
-pairs(emm)
+#ZIglm <- glmmTMB(proportion.eaten ~ as.factor(WeekNum)*as.factor(Period), data = censorsub, ziformula = ~as.factor(WeekNum), family = ziGamma((link= "inverse")))
+#ZIglm.resids <- simulateResiduals(ZIglm)
+#cat("18C Diagnostic plots for CI")
+#plot(ZIglm.resids)
+#summary(ZIglm)
+#emm <- emmeans(ZIglm, ~ as.factor(WeekNum)*as.factor(Period), type = "response")
+#pairs(emm)
+
+mod <- glm(proportion.eaten ~ as.factor(WeekNum)*as.factor(Period), data = censorsub)
+plot(mod)
+summary(mod)
+
+emm <- emmeans(mod, ~as.factor(WeekNum) | as.factor(Period))
+pairs_res_18 <- pairs(emm, adjust = "tukey")
+pvals_df_18 <- as.data.frame(pairs_res_18)
+pvals_df_18$contrast <- as.character(pvals_df_18$contrast)
+
+pvals_df_18 <- pvals_df_18 %>%
+    separate(contrast, into = c("comp1", "comp2"), sep = " - ")
+
+pvals_df_18$Temperature <- as.factor(18)
 
 #Temperature 20 - better fit for normal data, when graphing out the response for CI at 20, it is normal except for the zero grouping
 #There are differences between 1-2 and 1-3, but week 2-3 are the same
 censorsub <- subset(censor, censor$Species.x == "CI" & censor$Temperature == 20)
-ZIglm <- glmmTMB(proportion.eaten ~ as.factor(WeekNum), data = censorsub, ziformula = ~as.factor(WeekNum))
-ZIglm.resids <- simulateResiduals(ZIglm)
-cat("20C Diagnostic plots for CI")
-plot(ZIglm.resids)
-summary(ZIglm)
-emm <- emmeans(ZIglm, ~ as.factor(WeekNum), type = "response")
-pairs(emm)
+#hist(censorsub$proportion.eaten)
+#ZIglm <- glmmTMB(proportion.eaten ~ as.factor(WeekNum)*as.factor(Period), data = censorsub, ziformula = ~as.factor(WeekNum))
+#ZIglm.resids <- simulateResiduals(ZIglm)
+#cat("20C Diagnostic plots for CI")
+#plot(ZIglm.resids)
+#summary(ZIglm)
+#emm <- emmeans(ZIglm, ~ as.factor(WeekNum)*as.factor(Period), type = "response")
+#pairs(emm)
+#no differences
+mod <- glm(proportion.eaten ~ as.factor(WeekNum)*as.factor(Period), data = censorsub)
+plot(mod)
+summary(mod)
+emm <- emmeans(mod, ~as.factor(WeekNum) | as.factor(Period))
+pairs_res_20 <- pairs(emm, adjust = "tukey")
+pvals_df_20 <- as.data.frame(pairs_res_20)
+pvals_df_20$contrast <- as.character(pvals_df_20$contrast)
+
+pvals_df_20 <- pvals_df_20 %>%
+    separate(contrast, into = c("comp1", "comp2"), sep = " - ")
+
+pvals_df_20$Temperature <- as.factor(20)
+
 
 #Temperature 22 - good fit, no differences between any groups
 censorsub <- subset(censor, censor$Species.x == "CI" & censor$Temperature == 22)
-ZIglm <- glmmTMB(proportion.eaten ~ as.factor(WeekNum), data = censorsub, ziformula = ~as.factor(WeekNum), family = ziGamma((link= "inverse")))
-ZIglm.resids <- simulateResiduals(ZIglm)
-cat("22C Diagnostic plots for CI")
-plot(ZIglm.resids)
-summary(ZIglm)
-emm <- emmeans(ZIglm, ~ as.factor(WeekNum), type = "response")
-pairs(emm)
+#ZIglm <- glmmTMB(proportion.eaten ~ as.factor(WeekNum)*as.factor(Period), data = censorsub, ziformula = ~as.factor(WeekNum), family = ziGamma((link= "inverse")))
+#ZIglm.resids <- simulateResiduals(ZIglm)
+#cat("22C Diagnostic plots for CI")
+#plot(ZIglm.resids)
+#summary(ZIglm)
+#emm <- emmeans(ZIglm, ~ as.factor(WeekNum), type = "response")
+#pairs(emm)
+
+hist(censor$proportion.eaten)
+
+mod <- glm(proportion.eaten ~ as.factor(WeekNum)*as.factor(Period), data = censorsub)
+plot(mod)
+summary(mod)
+emm <- emmeans(mod, ~as.factor(WeekNum) | as.factor(Period))
+pairs_res_22 <- pairs(emm, adjust = "tukey")
+pvals_df_22 <- as.data.frame(pairs_res_22)
+pvals_df_22$contrast <- as.character(pvals_df_22$contrast)
+
+pvals_df_22 <- pvals_df_22 %>%
+    separate(contrast, into = c("comp1", "comp2"), sep = " - ")
+
+pvals_df_22$Temperature <- as.factor(22)
+
 
 #Temperature 24 - good fit, no differences between week numbers
 censorsub <- subset(censor, censor$Species.x == "CI" & censor$Temperature == 24)
-ZIglm <- glmmTMB(proportion.eaten ~ as.factor(WeekNum), data = censorsub, ziformula = ~as.factor(WeekNum), family = ziGamma((link= "inverse")))
-ZIglm.resids <- simulateResiduals(ZIglm)
-cat("24C Diagnostic plots for CI")
-plot(ZIglm.resids)
-summary(ZIglm)
-emm <- emmeans(ZIglm, ~ as.factor(WeekNum), type = "response")
-pairs(emm)
+#ZIglm <- glmmTMB(proportion.eaten ~ as.factor(WeekNum), data = censorsub, ziformula = ~as.factor(WeekNum), family = ziGamma((link= "inverse")))
+#ZIglm.resids <- simulateResiduals(ZIglm)
+#cat("24C Diagnostic plots for CI")
+#plot(ZIglm.resids)
+#summary(ZIglm)
+#emm <- emmeans(ZIglm, ~ as.factor(WeekNum), type = "response")
+#pairs(emm)
+
+mod <- glm(proportion.eaten ~ as.factor(WeekNum)*as.factor(Period), data = censorsub)
+plot(mod)
+summary(mod)
+emm <- emmeans(mod, ~as.factor(WeekNum) | as.factor(Period))
+pairs_res_24 <- pairs(emm, adjust = "tukey")
+pvals_df_24 <- as.data.frame(pairs_res_24)
+pvals_df_24$contrast <- as.character(pvals_df_24$contrast)
+
+pvals_df_24 <- pvals_df_24 %>%
+    separate(contrast, into = c("comp1", "comp2"), sep = " - ")
+
+pvals_df_24$Temperature <- as.factor(24)
 
 #Temperature 26 - Good fit, no difference!
 censorsub <- subset(censor, censor$Species.x == "CI" & censor$Temperature == 26)
-ZIglm <- glmmTMB(proportion.eaten ~ as.factor(WeekNum), data = censorsub, ziformula = ~as.factor(WeekNum), family = ziGamma((link= "inverse")))
-ZIglm.resids <- simulateResiduals(ZIglm)
-cat("26C Diagnostic plots for CI")
-plot(ZIglm.resids)
-summary(ZIglm)
-emm <- emmeans(ZIglm, ~ as.factor(WeekNum), type = "response")
-pairs(emm)
+hist(censorsub$proportion.eaten)
+#ZIglm <- glmmTMB(proportion.eaten ~ as.factor(WeekNum) + as.factor(Period), data = censorsub, ziformula = ~1, family = ziGamma((link= "inverse")))
+#ZIglm.resids <- simulateResiduals(ZIglm)
+#cat("26C Diagnostic plots for CI")
+#plot(ZIglm.resids)
+#summary(ZIglm)
+#emm <- emmeans(ZIglm, ~ as.factor(WeekNum), type = "response")
+#pairs(emm)
+
+mod <- glm(proportion.eaten ~ as.factor(WeekNum)*as.factor(Period), data = censorsub)
+plot(mod)
+summary(mod)
+emm <- emmeans(mod, ~as.factor(WeekNum) | as.factor(Period))
+pairs_res_26 <- pairs(emm, adjust = "tukey")
+pvals_df_26 <- as.data.frame(pairs_res_26)
+pvals_df_26$contrast <- as.character(pvals_df_26$contrast)
+
+pvals_df_26 <- pvals_df_26 %>%
+    separate(contrast, into = c("comp1", "comp2"), sep = " - ")
+
+pvals_df_26$Temperature <- as.factor(26)
+
+heat_df <- rbind(pvals_df_18, pvals_df_20, pvals_df_22, pvals_df_24, pvals_df_26)
+
+heat_df$signfi <- ifelse(heat_df$p.value < .05, "sig", "ns")
+
+ggplot(heat_df, aes(x = comp1, y = comp2, fill = signfi)) + geom_tile() + facet_grid(Period~Temperature) + ggtitle("Differences between Week Number Within Periods for Rock crabs")
+
+
 ```
 
 ### Are there differences in consumption rate across different species and temperature? - Period Checking
@@ -776,7 +980,7 @@ To understand if there were differences between periods, I first created a histo
 
 #### PERIOD DIFFERENCES RESULTS
 
--I found...
+-I found... (OLD RESULTS)
 
 -   For CI, the only temperature treatment where there were differences between periods was temperature treatment 20
 
@@ -794,105 +998,49 @@ To understand if there were differences between periods, I first created a histo
 
 #CI--------------------------------------------------------------------------
 
-#Gamma distribution with inflated 0 -> model fits well and says NO DIFFERENCE between periods
-censorsub <- subset(censor, censor$Species.x == "CI" & Temperature == 18)
-hist(censorsub$proportion.eaten, main = "Distribution for 18C CI")
-ZIglm <- glmmTMB(proportion.eaten ~ as.factor(Period), data = censorsub, ziformula = ~as.factor(Period), family = ziGamma((link= "inverse")))
-ZIglm.resids <- simulateResiduals(ZIglm)
-cat("18C Diagnostic plots for CI")
-plot(ZIglm.resids)
-summary(ZIglm)
+#NOTE PREVIOUSLY TRIED TO USE ZERO-INFLATED MODELS TO ESTIMATE DIFFERENCES BETWEEN PERIODS
+#however zeros only account for 7% of the total data, overkill, zero models kept failing. Replacing with normal GLMS
 
-#normal distribution with inflated 0 -> model fits well and says there is a DIFFERENCE between the periods
-censorsub <- subset(censor, censor$Species.x == "CI" & Temperature == 20)
-hist(censorsub$proportion.eaten, main = "Distribution for 20C CI")
-ZIglm <- glmmTMB(proportion.eaten ~ as.factor(Period), data = censorsub, ziformula = ~as.factor(Period))
-ZIglm.resids <- simulateResiduals(ZIglm)
-cat("20C Diagnostic plots for CI")
-plot(ZIglm.resids)
-summary(ZIglm)
-
-#poor fit for zero inflated, good fit for normal GLM (distribution is more normal). NO DIFFERENCE found in either model
-censorsub <- subset(censor, censor$Species.x == "CI" & Temperature == 22)
-hist(censorsub$proportion.eaten, main = "Distribution for 22C CI")
-#ZIglm <- glmmTMB(proportion.eaten ~ as.factor(Period), data = censorsub, ziformula = ~as.factor(Period))
-#ZIglm.resids <- simulateResiduals(ZIglm)
-#plot(ZIglm.resids)
-#summary(ZIglm)
-par(mfrow = c(2,2))
-mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
-plot(mod, main = "22C Diagnostic plots for CI")
+censorsub <- subset(censor, censor$Species.x == "CI" & censor$WeekNum == 3)
+hist(censorsub$proportion.eaten)
+par(mfrow=c(2,2))
+mod <-glm(proportion.eaten ~ as.factor(Period)*as.factor(Temperature), data = censorsub)
+plot(mod)
 summary(mod)
+emm <- emmeans(mod, ~as.factor(Period) | as.factor(Temperature))
+pairs_res_CI <- pairs(emm, adjust = "tukey")
+pvals_df_CI <- as.data.frame(pairs_res_CI)
+pvals_df_CI$contrast <- as.character(pvals_df_CI$contrast)
 
-par(mfrow = c(1,1))
-#Model is a good fit, NO DIFFERENCE between periods
-censorsub <- subset(censor, censor$Species.x == "CI" & Temperature == 24)
-hist(censorsub$proportion.eaten, main = "Distribution for 24C CI")
-ZIglm <- glmmTMB(proportion.eaten ~ as.factor(Period), data = censorsub, ziformula = ~as.factor(Period), family = ziGamma((link= "inverse")))
-ZIglm.resids <- simulateResiduals(ZIglm)
-cat("24C Diagnostic plots for CI")
-plot(ZIglm.resids)
-summary(ZIglm)
+pvals_df_CI <- pvals_df_CI %>%
+    separate(contrast, into = c("comp1", "comp2"), sep = " - ")
 
-#good fit, NO DIFFERENCE between periods
-censorsub <- subset(censor, censor$Species.x == "CI" & Temperature == 26)
-hist(censorsub$proportion.eaten, main = "Distribution for 26C CI")
-ZIglm <- glmmTMB(proportion.eaten ~ as.factor(Period), data = censorsub, ziformula = ~as.factor(Period), family = ziGamma((link= "inverse")))
-ZIglm.resids <- simulateResiduals(ZIglm)
-cat("26C Diagnostic plots for CI")
-plot(ZIglm.resids)
-summary(ZIglm)
+pvals_df_CI$Species <- as.factor("CI")
+
+#zeros only account for 7% of the total dataset, although it looks like 0's account for much more in the histogram, they aren't as strong as suspect which is why GLMs can be used.
 
 ```
 
 Moving on to green crabs, which used normal GLMs
 
 ```{R, echo=FALSE,results='hide',fig.keep='all', fig.width=7, fig.height=5}
-#CM-----------------------------------------------------------------------------
-#normal distribution, fitting a normal GLM. 
-#good fit, NO DIFFERENCES between periods
-censorsub <- subset(censor, censor$Species.x == "CM" & Temperature == 18)
-hist(censorsub$proportion.eaten, main = "Distribution for 18C CM")
-mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
-par(mfrow = c(2,2))
-plot(mod, main = "18C Diagnostic plots for CM")
-summary(mod)
 
-#okay fit, NO DIFFERENCES between periods
-censorsub <- subset(censor, censor$Species.x == "CM" & Temperature == 20)
-par(mfrow = c(1,1))
-hist(censorsub$proportion.eaten, main = "Distribution for 20C CM")
-mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub, family = Gamma(link = "inverse"))
-par(mfrow = c(2,2))
-plot(mod, main = "20C Diagnostic plots for CM")
+#model is good enough
+censorsub <- subset(censor, censor$Species.x == "CM" & censor$WeekNum == 3)
+#hist(censorsub$proportion.eaten)
+par(mfrow=c(2,2))
+mod <-glm(proportion.eaten ~ as.factor(Period)*as.factor(Temperature), data = censorsub)
+plot(mod)
 summary(mod)
+emm <- emmeans(mod, ~as.factor(Period) | as.factor(Temperature))
+pairs_res_CM <- pairs(emm, adjust = "tukey")
+pvals_df_CM <- as.data.frame(pairs_res_CM)
+pvals_df_CM$contrast <- as.character(pvals_df_CM$contrast)
 
-#good fit, NO DIFFERENCES between periods
-censorsub <- subset(censor, censor$Species.x == "CM" & Temperature == 22)
-par(mfrow = c(1,1))
-hist(censorsub$proportion.eaten, main = "Distribution for 22C CM")
-mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
-par(mfrow = c(2,2))
-plot(mod, main = "22C Diagnostic plots for CM")
-summary(mod)
+pvals_df_CM <- pvals_df_CM %>%
+    separate(contrast, into = c("comp1", "comp2"), sep = " - ")
 
-#good fit, there are DIFFERENCES between periods
-censorsub <- subset(censor, censor$Species.x == "CM" & Temperature == 24)
-par(mfrow = c(1,1))
-hist(censorsub$proportion.eaten, main = "Distribution for 24C CM")
-mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
-par(mfrow = c(2,2))
-plot(mod, main = "24C Diagnostic plots for CM")
-summary(mod)
-
-#good fit, NO DIFFERENCES between periods
-censorsub <- subset(censor, censor$Species.x == "CM" & Temperature == 26)
-par(mfrow = c(1,1))
-hist(censorsub$proportion.eaten, main = "Distribution for 26C CM")
-mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
-par(mfrow = c(2,2))
-plot(mod, main = "26C Diagnostic plots for CM")
-summary(mod)
+pvals_df_CM$Species <- as.factor("CM")
 
 ```
 
@@ -900,59 +1048,32 @@ Moving on to shore crabs, I used a zero inflated model for 18C and normal GLM fo
 
 ```{R, echo=FALSE,results='hide',fig.keep='all', fig.width=7, fig.height=5}
 #HS----------------------------------------------------------------------------
-
-#both normal GLM, Gamma GLM, ZI Gamma (best fitting model) say NO DIFFERENCES
-#censorsub <- subset(censor, censor$Species.x == "HS" & Temperature == 18)
+censorsub <- subset(censor, censor$Species.x == "HS" & censor$WeekNum == 3)
 #hist(censorsub$proportion.eaten)
-#censorsub$proportion.eaten <- ifelse(censorsub$proportion.eaten <= 0, .001, censorsub$proportion.eaten)
-#mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub, family = Gamma(link = "inverse"))
-#plot(mod)
-#summary(mod)
-
-censorsub <- subset(censor, censor$Species.x == "HS" & Temperature == 18)
-par(mfrow = c(1,1))
-hist(censorsub$proportion.eaten, main = "Distribution for 18C HS")
-ZIglm <- glmmTMB(proportion.eaten ~ as.factor(Period), data = censorsub, ziformula = ~as.factor(Period), family = ziGamma((link= "inverse")))
-ZIglm.resids <- simulateResiduals(ZIglm)
-cat("18C Diagnostic plots for HS")
-plot(ZIglm.resids)
-summary(ZIglm)
-
-#good fit, there is a DIFFERENCE between periods
-censorsub <- subset(censor, censor$Species.x == "HS" & Temperature == 20)
-par(mfrow = c(1,1))
-hist(censorsub$proportion.eaten, main = "Distribution for 20C HS")
-mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
-par(mfrow = c(2,2))
-plot(mod, main = "20C Diagnostic plots for HS")
+par(mfrow=c(2,2))
+mod <-glm(proportion.eaten ~ as.factor(Period)*as.factor(Temperature), data = censorsub)
+plot(mod)
 summary(mod)
+emm <- emmeans(mod, ~as.factor(Period) | as.factor(Temperature))
+pairs_res_HS <- pairs(emm, adjust = "tukey")
+pvals_df_HS <- as.data.frame(pairs_res_HS)
+pvals_df_HS$contrast <- as.character(pvals_df_HS$contrast)
 
-#good fit, There is NO DIFFERENCE between periods
-censorsub <- subset(censor, censor$Species.x == "HS" & Temperature == 22)
-par(mfrow = c(1,1))
-hist(censorsub$proportion.eaten, main = "Distribution for 22C HS")
-mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
-par(mfrow = c(2,2))
-plot(mod, main = "22C Diagnostic plots for HS")
-summary(mod)
+pvals_df_HS <- pvals_df_HS %>%
+    separate(contrast, into = c("comp1", "comp2"), sep = " - ")
 
-#good fit, there is a DIFFERENCE between periods
-censorsub <- subset(censor, censor$Species.x == "HS" & Temperature == 24)
-par(mfrow = c(1,1))
-hist(censorsub$proportion.eaten, main = "Distribution for 24C HS")
-mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub)
-par(mfrow = c(2,2))
-plot(mod, main = "24C Diagnostic plots for HS")
-summary(mod)
+pvals_df_HS$Species <- as.factor("HS")
 
-#good fit, there is a DIFFERENCE between periods
-censorsub <- subset(censor, censor$Species.x == "HS" & Temperature == 26)
-par(mfrow = c(1,1))
-hist(censorsub$proportion.eaten, main = "Distribution for 26C HS")
-mod <- glm(proportion.eaten ~ as.factor(Period), data = censorsub, family = Gamma(link = "inverse"))
-par(mfrow = c(2,2))
-plot(mod, main = "26C Diagnostic plots for HS")
-summary(mod)
+```
+
+```{R}
+#COMBINGING ALL SPECIES FOR PERIOD DIFFERENCES TOGETHER
+
+period_diff <- rbind(pvals_df_CI, pvals_df_CM, pvals_df_HS)
+
+period_diff$significant <- ifelse(period_diff$p.value <= 0.05, "sig", "ns")
+
+ggplot(period_diff, aes(x = comp1, y = comp2, fill = significant)) + geom_tile() + facet_grid(Temperature~Species) + ggtitle("Differences between period 1 and period 2 within each temperature regime for each species for the final week of feeding")
 ```
 
 ### Are there differences in consumption rate across different species and temperature? - Modeling the big question
@@ -1201,7 +1322,7 @@ library(glmmTMB)
 data = subset(finalEatCensor, proportion.eaten > 0)
 # Hurdle model: zeros vs positives (binomial) + positive consumption (Gamma)
 pos_model <- glmmTMB(
-  proportion.eaten ~ Species.x*as.factor(Temperature) + as.factor(Period) + 
+  proportion.eaten ~ Species.x*Temperature + as.factor(Period) + 
                 (1 | ID) + (1 | runID),
   family = Gamma(link = "inverse"),
   data = data, na.action = "na.fail"
@@ -1283,22 +1404,23 @@ I tried, zero inflated Gamma (inverse, log, identity) and GLM (identity, log, in
 censorsub <- subset(finalEatCensor, finalEatCensor$Species.x == "CI")
 hist(censorsub$proportion.eaten, main = "Distribution of rock crabs from the censor model")
 
-all.ZIglm <- glmmTMB(proportion.eaten ~ Temperature*Period, data = censorsub, ziformula = ~Temperature, na.action = "na.fail")
+all.ZIglm <- glmmTMB(proportion.eaten ~ Temperature*Period*WeekNum, data = censorsub, ziformula = ~Temperature, na.action = "na.fail")
 #dredge(all.ZIglm)
 
 best.mod1 <- glmmTMB(proportion.eaten ~ Temperature + Period, data = censorsub, ziformula = ~Temperature,na.action = "na.fail")
 best.mod2 <- glmmTMB(proportion.eaten ~ Temperature, data = censorsub, ziformula = ~Temperature,na.action = "na.fail")
 best.mod3 <- glmmTMB(proportion.eaten ~ Temperature*Period, data = censorsub, ziformula = ~Temperature, na.action = "na.fail")
 
-#ZIglm.resids <- simulateResiduals(best.mod1)
-#plot(ZIglm.resids)
+ZIglm.resids <- simulateResiduals(all.ZIglm)
+plot(ZIglm.resids)
+summary(all.ZIglm)
 #ZIglm.resids <- simulateResiduals(best.mod2)
 #plot(ZIglm.resids)
 ZIglm.resids <- simulateResiduals(best.mod3)
 cat("Zero-inflated model for rock crabs")
 plot(ZIglm.resids)
 
-all.glm <- glm(proportion.eaten ~ Temperature*Period, data = censorsub, na.action = "na.fail")
+all.glm <- glm(proportion.eaten ~ Temperature*Period*WeekNum, data = censorsub, na.action = "na.fail")
 #dredge(all.glm)
 
 best.mod1 <- glm(proportion.eaten ~ Temperature*Period, data = censorsub, na.action = "na.fail")
