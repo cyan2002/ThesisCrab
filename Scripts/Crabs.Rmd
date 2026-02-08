@@ -354,8 +354,12 @@ ggplot(mastergraph, aes(x = Temperature, y = dead, color = Species)) + geom_poin
   legend.box.background = element_rect(color = "black", size = 1, linetype = "solid"),
   legend.box.margin = margin(t = 5, r = 5, b = 5, l = 5, unit = "mm")
 ) +
-  scale_x_continuous(breaks = c(18, 20, 22, 24, 26))
+  scale_x_continuous(breaks = c(18, 20, 22, 24, 26)) +
+  scale_y_discrete(breaks = c(0,1))
   
+
+dat <- subset(mastergraph, mastergraph$Species == "Irroratus" & mastergraph$Temperature == 18 & mastergraph$dead == 0)
+nrow(dat)
 
 ```
 
@@ -417,8 +421,6 @@ newdat$se  <- pred_link$se.fit
 newdat$lwr <- plogis(newdat$fit - 1.96 * newdat$se)
 newdat$upr <- plogis(newdat$fit + 1.96 * newdat$se)
 newdat$pred <- plogis(newdat$fit)
-
-
 
 ggplot(holddf, aes(x = Temperature, y = dead)) +
   geom_point(
@@ -567,7 +569,7 @@ ggplot(summary_censor, aes(x = as.numeric(WeekNum), y = mean, color = SpeciesPer
                                 "HS_1" = "Period 1 Asian Shore Crab",
                                 "HS_2" = "Period 2 Asian Shore Crab"),
                      name = "Species/Period")+
-  theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5)) +
+  theme(plot.title = element_text(size = 15, face = "bold", hjust = 0)) +
   xlab("Week Number")+
   scale_x_continuous(breaks = c(1, 2, 3))+
   ylab("Average proportion of body weight eaten (%)")
@@ -691,7 +693,48 @@ heat_df <- rbind(pvals_df_18, pvals_df_20, pvals_df_22, pvals_df_24, pvals_df_26
 
 heat_df$signfi <- ifelse(heat_df$p.value < .05, "sig", "ns")
 
-ggplot(heat_df, aes(x = comp1, y = comp2, fill = signfi)) + geom_tile() + facet_grid(Period~Temperature) + ggtitle("Differences between Week Number Within Periods for Green Crabs")
+ggplot(heat_df, aes(x = comp1, y = comp2, fill = signfi)) + 
+  geom_tile(color = "black", linewidth = 0.4) + 
+  facet_grid(Period~Temperature,
+  labeller = labeller(
+    Period = c(
+      "1" = "Period 1",
+      "2" = "Period 2"
+    ),
+    Temperature = c(
+      "18" = "18°C",
+      "20" = "20°C",
+      "22" = "22°C",
+      "24" = "24°C",
+      "26" = "26°C"
+    ))) + 
+  ggtitle("Differences between Week Number Within Periods for Green Crabs")+
+  scale_fill_manual(
+    name = "Significance",
+    values = c("ns" = "darkorange", "sig" = "darkblue"),
+    breaks = c("ns", "sig"),
+    limits = c("ns", "sig"),
+    drop = FALSE,
+    guide = guide_legend(
+      override.aes = list(
+        fill = c("darkorange", "darkblue")
+      )
+    )
+  )+
+  xlab("Week Number")+
+  ylab("Week Number")+
+  scale_x_discrete(
+  labels = c(
+    "WeekNum1" = "1",
+    "WeekNum2" = "2"
+  ))+
+  scale_y_discrete(
+    labels = c(
+      "WeekNum2" = "2",
+      "WeekNum3" = "3"
+    )
+  )+
+  theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5))
 
 
 #For green crabs, there are no differences between week number within each Temperature treatment
@@ -810,7 +853,48 @@ heat_df <- rbind(pvals_df_18, pvals_df_20, pvals_df_22, pvals_df_24, pvals_df_26
 
 heat_df$signfi <- ifelse(heat_df$p.value < .05, "sig", "ns")
 
-ggplot(heat_df, aes(x = comp1, y = comp2, fill = signfi)) + geom_tile() + facet_grid(Period~Temperature) + ggtitle("Differences between Week Number Within Periods for Hemis")
+ggplot(heat_df, aes(x = comp1, y = comp2, fill = signfi)) + 
+  geom_tile(color = "black", linewidth = 0.4) + 
+  facet_grid(Period~Temperature,
+  labeller = labeller(
+    Period = c(
+      "1" = "Period 1",
+      "2" = "Period 2"
+    ),
+    Temperature = c(
+      "18" = "18°C",
+      "20" = "20°C",
+      "22" = "22°C",
+      "24" = "24°C",
+      "26" = "26°C"
+    ))) + 
+  ggtitle("Differences between Week Number Within Periods for Asian Shore Crabs")+
+  scale_fill_manual(
+    name = "Significance",
+    values = c("ns" = "darkorange", "sig" = "darkblue"),
+    breaks = c("ns", "sig"),
+    limits = c("ns", "sig"),
+    drop = FALSE,
+    guide = guide_legend(
+      override.aes = list(
+        fill = c("darkorange", "darkblue")
+      )
+    )
+  )+
+  xlab("Week Number")+
+  ylab("Week Number")+
+  scale_x_discrete(
+  labels = c(
+    "WeekNum1" = "1",
+    "WeekNum2" = "2"
+  ))+
+  scale_y_discrete(
+    labels = c(
+      "WeekNum2" = "2",
+      "WeekNum3" = "3"
+    )
+  )+
+  theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5))
 
 #there are differences between weeks 2 and 3 for some temperature treatments
 ```
@@ -961,8 +1045,48 @@ heat_df <- rbind(pvals_df_18, pvals_df_20, pvals_df_22, pvals_df_24, pvals_df_26
 
 heat_df$signfi <- ifelse(heat_df$p.value < .05, "sig", "ns")
 
-ggplot(heat_df, aes(x = comp1, y = comp2, fill = signfi)) + geom_tile() + facet_grid(Period~Temperature) + ggtitle("Differences between Week Number Within Periods for Rock crabs")
-
+ggplot(heat_df, aes(x = comp1, y = comp2, fill = signfi)) + 
+  geom_tile(color = "black", linewidth = 0.4) + 
+  facet_grid(Period~Temperature,
+  labeller = labeller(
+    Period = c(
+      "1" = "Period 1",
+      "2" = "Period 2"
+    ),
+    Temperature = c(
+      "18" = "18°C",
+      "20" = "20°C",
+      "22" = "22°C",
+      "24" = "24°C",
+      "26" = "26°C"
+    ))) + 
+  ggtitle("Differences between Week Number Within Periods for Rock Crabs")+
+  scale_fill_manual(
+    name = "Significance",
+    values = c("ns" = "darkorange", "sig" = "darkblue"),
+    breaks = c("ns", "sig"),
+    limits = c("ns", "sig"),
+    drop = FALSE,
+    guide = guide_legend(
+      override.aes = list(
+        fill = c("darkorange", "darkblue")
+      )
+    )
+  )+
+  xlab("Week Number")+
+  ylab("Week Number")+
+  scale_x_discrete(
+  labels = c(
+    "WeekNum1" = "1",
+    "WeekNum2" = "2"
+  ))+
+  scale_y_discrete(
+    labels = c(
+      "WeekNum2" = "2",
+      "WeekNum3" = "3"
+    )
+  )+
+  theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5))
 
 ```
 
@@ -1073,7 +1197,49 @@ period_diff <- rbind(pvals_df_CI, pvals_df_CM, pvals_df_HS)
 
 period_diff$significant <- ifelse(period_diff$p.value <= 0.05, "sig", "ns")
 
-ggplot(period_diff, aes(x = comp1, y = comp2, fill = significant)) + geom_tile() + facet_grid(Temperature~Species) + ggtitle("Differences between period 1 and period 2 within each temperature regime for each species for the final week of feeding")
+
+
+ggplot(period_diff, aes(x = comp1, y = comp2, fill = significant)) + 
+  geom_tile(color = "black", linewidth = 0.4) + 
+  facet_grid(Species~Temperature,
+  labeller = labeller(
+    Species = c(
+      "CI" = "Rock Crab",
+      "CM" = "Green Crab",
+      "HS" = "Asian Shore Crab"
+    ),
+    Temperature = c(
+      "18" = "18°C",
+      "20" = "20°C",
+      "22" = "22°C",
+      "24" = "24°C",
+      "26" = "26°C"
+    ))) + 
+  ggtitle("Period 1 and 2 Differences for each Temperature \nand Species (Final Feeding Week)")+
+  scale_fill_manual(
+    name = "Significance",
+    values = c("ns" = "darkorange", "sig" = "darkblue"),
+    breaks = c("ns", "sig"),
+    limits = c("ns", "sig"),
+    drop = FALSE,
+    guide = guide_legend(
+      override.aes = list(
+        fill = c("darkorange", "darkblue")
+      )
+    )
+  )+
+  xlab("Period Number")+
+  ylab("Period Number")+
+  scale_x_discrete(
+  labels = c(
+    "Period1" = "1"
+  ))+
+  scale_y_discrete(
+    labels = c(
+      "Period2" = "2"
+    )
+  )+
+  theme(plot.title = element_text(size = 20, face = "bold", hjust = 0.5))
 ```
 
 ### Are there differences in consumption rate across different species and temperature? - Modeling the big question
@@ -1318,6 +1484,10 @@ finalEatCensor$log_mass_bs <- ave(
 finalEatCensor$runID <- paste(finalEatCensor$Temperature, finalEatCensor$Period, sep = "_")
 
 library(glmmTMB)
+dat <- subset(finalEatCensor, finalEatCensor$proportion.eaten == 0)
+
+holddf <- finalEatCensor
+holddf$proportion.eaten <- ifelse(holddf$proportion.eaten == 0, .001, holddf$proportion.eaten)
 
 data = subset(finalEatCensor, proportion.eaten > 0)
 # Hurdle model: zeros vs positives (binomial) + positive consumption (Gamma)
@@ -1328,56 +1498,62 @@ pos_model <- glmmTMB(
   data = data, na.action = "na.fail"
 )
 
-dredge(pos_model)
-
-subcensor <- subset(finalEatCensor, finalEatCensor$proportion.eaten > 0)
-
-pos_model2 <- glmmTMB(
-  proportion.eaten ~ Species.x*as.factor(Temperature) + 
-                (1 | ID) + (1 | runID),
-  family = Gamma(link = "inverse"),
-  data = data, na.action = "na.fail"
-)
-
-pos_model3 <- glmmTMB(
-  proportion.eaten ~ Species.x*as.factor(Temperature) + as.factor(Period)  + 
-                (1 | ID) + (1 | runID),
-  family = Gamma(link = "inverse"),
-  data = data, na.action = "na.fail"
-)
-
 dredge(pos_model3)
 
-ggplot(aes(x = as.factor(Temperature), y = proportion.eaten, fill = Species.x), data = subcensor) + geom_boxplot() + facet_wrap(~Species.x) + scale_fill_manual(values = c("CI" = "darkorange", "CM" = "darkgreen", "HS" = "darkred"))
+ggplot(aes(x = as.factor(Temperature), y = (proportion.eaten), fill = Species.x), data = subcensor) + 
+  geom_boxplot() + 
+  facet_wrap(~Species.x, labeller = 
+               labeller(Species.x = c("CI" = "Rock Crab", "CM" = "Green Crab", "HS" = "Asian Shore Crab"))) + 
+  scale_fill_manual(name = "Species", values = c("CI" = "darkorange", "CM" = "darkgreen", "HS" = "darkred"),
+                    labels = c("CI" = "Rock Crab", "CM" = "Green Crab", "HS" = "Asian Shore Crab"))+
+  theme_classic() +
+  theme(plot.title = element_text(size = 15, face = "bold", hjust = 0))+
+  xlab("Temperature (°C)")+
+  ylab("Log Proportion Eaten (% of Body Weight)") +
+  ggtitle("Proportion Eaten (% Body Weight) for each Temperature Treatment")
 
 # Simulate DHARMa residuals
 sim_res_pos <- simulateResiduals(fittedModel = pos_model, n = 1000)
-sim_res_pos2 <- simulateResiduals(fittedModel = pos_model2, n = 1000)
-sim_res_pos3 <- simulateResiduals(fittedModel = pos_model3, n = 1000)
 
 # Basic diagnostic plots
 plot(sim_res_pos)                  # uniformity, QQ, residuals vs predicted
-plot(sim_res_pos2)
-plot(sim_res_pos3)
 
 # Test for over/underdispersion and zero-inflation
 testDispersion(sim_res_pos)
 testZeroInflation(sim_res_pos)  # should be low for positive model
-testDispersion(sim_res_pos2)
-testZeroInflation(sim_res_pos2)  # should be low for positive model
-testDispersion(sim_res_pos3)
-testZeroInflation(sim_res_pos3)  # should be low for positive model
-
 
 zero_model <- glmmTMB(
-  binaryfed ~ Species.x*Temperature + Period + 
+  binaryfed ~ Species.x*Temperature + as.factor(Period) + 
                   (1 | ID) + (1 | runID),
   family = binomial,
   data = finalEatCensor
 )
 
+br_zero_model <- brglm(
+  binaryfed ~ Species.x*Temperature + as.factor(Period),
+  family = binomial,
+  data = finalEatCensor
+)
+summary(br_zero_model)
+
+#need to fix zero model and write in results summary in document
+#also need to review what you wrote and make corrections
+#make comparisons with Cheng et al 2014
+
 ggplot(finalEatCensor, aes(x = as.factor(Temperature), fill = as.factor(binaryfed))) +
-  facet_wrap(~Species.x) + geom_bar() + scale_fill_manual(values = c("0" = "darkred", "1" = "darkgreen"))
+  geom_bar(position = "fill") + 
+  facet_wrap(~Species.x, labeller = 
+               labeller(Species.x = c("CI" = "Rock Crab", "CM" = "Green Crab", "HS" = "Asian Shore Crab"))) + 
+  scale_fill_manual(name = "Eaten (Y/N)", values = c("0" = "darkred", "1" = "darkgreen"),
+                    labels = c("0" = "No", "1" = "Yes"))+
+  theme_classic() +
+  theme(plot.title = element_text(size = 15, face = "bold", hjust = 0))+
+  xlab("Temperature (°C)")+
+  ylab("Percentage (%)") +
+  ggtitle("Percentage of Whether the Crab Ate or Not")
+
+dat <- subset(finalEatCensor, finalEatCensor$Species.x == "HS" & finalEatCensor$binaryfed == 0)
+nrow(dat)
 
 # Simulate DHARMa residuals
 sim_res_zero <- simulateResiduals(fittedModel = zero_model, n = 1000)
@@ -1393,130 +1569,127 @@ testZeroInflation(sim_res_zero)  # should be low for positive model
 summary(pos_model)
 summary(zero_model)
 
-```
 
-I tried, zero inflated Gamma (inverse, log, identity) and GLM (identity, log, inverse) and no models returned a good fit Let's try modeling each species separately since they all have different distributions. We'll begin with rock crabs. I'll use zero inflated models since the distribution seems to be zero inflated.
 
-```{R, include = FALSE, echo=FALSE,fig.keep='all', fig.width=7, fig.height=5, warning = FALSE}
-#Rock crab - censor model -----------------------------------------------------
-
-#distribution seems to be zero-inflated with a normal distribution
-censorsub <- subset(finalEatCensor, finalEatCensor$Species.x == "CI")
-hist(censorsub$proportion.eaten, main = "Distribution of rock crabs from the censor model")
-
-all.ZIglm <- glmmTMB(proportion.eaten ~ Temperature*Period*WeekNum, data = censorsub, ziformula = ~Temperature, na.action = "na.fail")
-#dredge(all.ZIglm)
-
-best.mod1 <- glmmTMB(proportion.eaten ~ Temperature + Period, data = censorsub, ziformula = ~Temperature,na.action = "na.fail")
-best.mod2 <- glmmTMB(proportion.eaten ~ Temperature, data = censorsub, ziformula = ~Temperature,na.action = "na.fail")
-best.mod3 <- glmmTMB(proportion.eaten ~ Temperature*Period, data = censorsub, ziformula = ~Temperature, na.action = "na.fail")
-
-ZIglm.resids <- simulateResiduals(all.ZIglm)
-plot(ZIglm.resids)
-summary(all.ZIglm)
-#ZIglm.resids <- simulateResiduals(best.mod2)
-#plot(ZIglm.resids)
-ZIglm.resids <- simulateResiduals(best.mod3)
-cat("Zero-inflated model for rock crabs")
-plot(ZIglm.resids)
-
-all.glm <- glm(proportion.eaten ~ Temperature*Period*WeekNum, data = censorsub, na.action = "na.fail")
-#dredge(all.glm)
-
-best.mod1 <- glm(proportion.eaten ~ Temperature*Period, data = censorsub, na.action = "na.fail")
-best.mod2 <- glm(proportion.eaten ~ Temperature + Period, data = censorsub, na.action = "na.fail")
-best.mod3 <- glm(proportion.eaten ~ Temperature, data = censorsub, na.action = "na.fail")
-
-par(mfrow = c(2,2))
-plot(best.mod1, main = "Censor model for rock crabs")
-cat("Summary output for the best GLM Censor model for rock crabs")
-summary(best.mod1)
-#plot(best.mod2)
-#plot(best.mod3)
-```
-
-Rock crabs didn't have a great model. The normal GLM model was an okay fit, but potentially alarming due to the scale-location plot.
-
-Next is green crabs. I dredged the full model then compared all the top models within 2 delta units of the top across a normal GLM.
-
-```{R, include = FALSE,echo=FALSE,fig.keep='all', fig.width=7, fig.height=5, warning = FALSE}
-#Green crab - Normal -----------------------------------------------------------
-censorsub <- subset(finalEatCensor, finalEatCensor$Species.x == "CM")
-hist(censorsub$proportion.eaten, main = "Distribution for CM Censor Model", xlab = "Proportion Consumed")
-
-#tie between 3 models
-all.mod <- glm(proportion.eaten ~ Temperature*Period, data = censorsub, na.action = "na.fail")
-#dredge(all.mod)
-
-#model 3 is the best
-mod1 <- glm(proportion.eaten ~ Temperature, data = censorsub, na.action = "na.fail")
-mod2 <- glm(proportion.eaten ~ Temperature + Period, data = censorsub, na.action = "na.fail")
-mod3 <- glm(proportion.eaten ~ Temperature*Period, data = censorsub, na.action = "na.fail")
-
-#plot(mod2)
-#plot(mod3)
-
-#model 1, 2 and 3 are good fits!
-par(mfrow = c(2,2))
-plot(mod1, main = "Censor model for green crabs")
-#plot(fitted(mod1), residuals(mod1))
-#abline(h=0, col="red")
-#hist(residuals(mod1))
-
-cat("Summary output for the best GLM Censor model for green crabs")
-summary(mod1)
-#summary(mod2)
-#summary(mod3)
-```
-
-Green crabs had 3 great models, interaction (between period and temperature), additive, and just temperature model all seem like great fits. Models 1 and 2 both say temperature has a significant slight increase while model 3 does not (interaction model). Model 3 also suggests period and its interaction are not different. I am more likely to believe there is a slight increase based on the exploratory graphs and since period is not significant I'll choose model 1 to go with.
-
-Moving on to the shore crabs. I'll first try a Gamma since it seems slightly skewed then a normal GLM.
-
-```{R, include = FALSE,echo=FALSE,fig.keep='all', fig.width=7, fig.height=5, warning = FALSE}
-#Shore crab - skew/normal ------------------------------------------------------
-censorsub <- subset(finalEatCensor, finalEatCensor$Species.x == "HS")
-hist(censorsub$proportion.eaten, main = "Distribution of the censor model for shore crab", xlab = "Proportion eaten")
-
-all.mod.mixed <- glm(proportion.eaten ~ Temperature*Period, data = censorsub, na.action = "na.fail")
-#dredge(all.mod.mixed)
-
-censorsub$proportion.eaten <- ifelse(censorsub$proportion.eaten <= 0, .001, censorsub$proportion.eaten)
-#model 3 is the best and the glm fits well
-all.mod.mixed1 <- glm(proportion.eaten ~ Temperature, family = Gamma(link = "inverse"), data = censorsub, na.action = "na.fail")
-all.mod.mixed2 <- glm(proportion.eaten ~ Temperature, family = Gamma(link = "log"), data = censorsub, na.action = "na.fail")
-all.mod.mixed3 <- glm(proportion.eaten ~ Temperature, data = censorsub, na.action = "na.fail")
-all.mod.mixed4 <- glm(proportion.eaten ~ Temperature*Period, family = Gamma(link = "inverse"), data = censorsub, na.action = "na.fail")
-all.mod.mixed5 <- glm(proportion.eaten ~ Temperature*Period, family = Gamma(link = "log"), data = censorsub, na.action = "na.fail")
-all.mod.mixed6 <- glm(proportion.eaten ~ Temperature*Period, data = censorsub, na.action = "na.fail")
-#AIC(all.mod.mixed1, all.mod.mixed2, all.mod.mixed3, all.mod.mixed4, all.mod.mixed5, all.mod.mixed6)
-
-#It's not the best model according to AIC, but has a great fit?
-par(mfrow = c(2,2))
-plot(all.mod.mixed3, main = "Censor model for shore crabs")
-#plot(all.mod.mixed6)
-
-#whereas the best models that AIC returns don't have great fits
-
-all.mod.mixed1
-#plot(all.mod.mixed2)
-#plot(all.mod.mixed4)
-
-#both indicate temperature slope is positive and ever so slightly increasing
-cat("Summary output for the best GLM Censor model for shore crabs")
-summary(all.mod.mixed3)
-#summary(all.mod.mixed6)
-
-#increase slope
-#summary(all.mod.mixed1)
-#positive slope
-#summary(all.mod.mixed2)
-#addition of period (no effect + no interaction), positive slope
-#summary(all.mod.mixed4)
-
-#based on the summaries, I would believe model 2 and 3; however, model 3 has a better fit but ranks lower on the AIC
+#in a Gamma inverse model, the slope is not constant, changes
 
 ```
+
+```{R}
+# realistic temperature range
+temp_seq <- seq(min(data$Temperature), max(data$Temperature), length.out = 100)
+
+# new data frame for predictions
+pred_df <- expand.grid(
+  Temperature = temp_seq,
+  Species.x = c("CI", "CM", "HS"),
+  Period = 1  # pick a period to hold constant
+)
+
+pred_link <- predict(pos_model, newdata = pred_df, type = "link", se.fit = TRUE, re.form = NA)
+
+pred_df <- pred_df %>%
+  mutate(
+    fit_link = pred_link$fit,
+    se_link = pred_link$se.fit,
+    lower = 1 / (fit_link + 1.96 * se_link),
+    upper = 1 / (fit_link - 1.96 * se_link),
+    proportion_eaten = 1 / fit_link
+  )
+
+ggplot(pred_df, aes(x = Temperature, y = proportion_eaten, color = Species.x)) +
+  geom_line(size = 1.2) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = Species.x), alpha = 0.2, color = NA) +
+  theme_minimal() +
+  labs(
+    color = "Species",
+    y = "Predicted Proportion Eaten",
+  ) + ggtitle("Predicted Proportion Eaten Across Temperature") + 
+  scale_color_manual(limits = c("HS", "CM", "CI"), 
+                     values = c("CI" = "darkorange",
+                                "CM" = "darkgreen",
+                                "HS" = "darkred"),
+                     labels = c("CI" = "Rock Crab",
+                                "CM" = "Green Crab",
+                                "HS" = "Asian Shore Crab"))+
+  scale_fill_manual(values = c("CI" = "darkorange",
+                                "CM" = "darkgreen",
+                                "HS" = "darkred"))+
+  guides(fill = "none")+
+  theme_classic() +
+  theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5))+
+  xlab("Temperature (°C)")+
+  ylab("Predicted Proportion (% Body Weight) Eaten") 
+
+
+library(dplyr)
+
+temp_seq <- seq(
+  min(finalEatCensor$Temperature, na.rm = TRUE),
+  max(finalEatCensor$Temperature, na.rm = TRUE),
+  length.out = 100
+)
+
+pred_df <- expand.grid(
+  Temperature = temp_seq,
+  Species.x = c("CI", "CM", "HS"),
+  Period = unique(finalEatCensor$Period)[1]  # pick any level
+)
+
+pred_link <- predict(
+  zero_model,
+  newdata = pred_df,
+  type = "link",
+  se.fit = TRUE,
+  re.form = NA
+)
+
+pred_df <- pred_df |>
+  dplyr::mutate(
+    fit_link = pred_link$fit,
+    se_link  = pred_link$se.fit,
+    prob     = plogis(fit_link),
+    lower    = plogis(fit_link - se_link),
+    upper    = plogis(fit_link + se_link)
+  )
+
+
+library(ggplot2)
+
+ggplot(pred_df, aes(x = Temperature, y = prob, color = Species.x)) +
+  geom_line(linewidth = 1.2) +
+  geom_ribbon(
+    aes(ymin = lower, ymax = upper, fill = Species.x),
+    alpha = 0.25,
+    color = NA
+  ) +
+  theme_classic() +
+  labs(
+    x = "Temperature (°C)",
+    y = "Percentage (%)",
+    color = "Species"
+  ) +
+  scale_color_manual(
+    values = c("CI" = "darkorange",
+               "CM" = "darkgreen",
+               "HS" = "darkred"),
+    labels = c("CI" = "Rock Crab",
+               "CM" = "Green Crab",
+               "HS" = "Asian Shore Crab")
+  ) +
+  scale_fill_manual(
+    values = c("CI" = "darkorange",
+               "CM" = "darkgreen",
+               "HS" = "darkred")
+  ) +
+  guides(fill = "none")+
+  ggtitle("Predicted Probability of a Crab Eating at Temperature")+
+  theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5))
+
+
+```
+
+
 
 The normal GLM fit the best; however, it ranked lower on the AIC. There were other higher ranking models according to the AIC but the diagnostic plots proved problematic. Models okay, let's compare these to the inclusive model and see how they fit over that data.
 
@@ -1637,108 +1810,6 @@ summary(pos_model)
 summary(zero_model)
 
 ```
-
-The fits aren't good. The normal GLMs have an almost good fit, but by modeling each species separately the fits can be better.
-
-I'll now move to modeling shore crabs which have a normal distribution, so I'll try normal GLMs.
-
-```{R, include = FALSE,echo=FALSE,fig.keep='all', fig.width=7, fig.height=5, warning = FALSE}
-#INCLUSIVE MODEL----------------------------------------------------------------
-
-#I can't seem to get the censor model to fit well for rock crabs, so let's model the inclusive model to maybe get a better fit?
-
-#HS-------------------------------------------------------------------------------
-
-inclusivesub <- subset(finalEatInclusive, finalEatInclusive$Species.x == "HS")
-hist(inclusivesub$proportion.eaten, main = "Distribution of inclusive model shore crab")
-
-#dredge function returns that period is not important to the model, so I'll leave it out
-all.mod.mixed <- glm(proportion.eaten ~ Temperature*Period, data = inclusivesub, na.action = "na.fail")
-#dredge(all.mod.mixed)
-
-#model 3 is the best and the glm fits well
-all.mod.mixed1 <- glm(proportion.eaten ~ Temperature, data = inclusivesub, na.action = "na.fail")
-all.mod.mixed6 <- glm(proportion.eaten ~ Temperature*Period, data = inclusivesub, na.action = "na.fail")
-#AIC(all.mod.mixed1, all.mod.mixed6)
-
-#3 outliers, but looks good
-par(mfrow = c(2,2))
-#plot(all.mod.mixed1)
-plot(all.mod.mixed6, main = "Inclusive model for shore crab")
-#model 3 and 6 are pretty good
-
-#both have signficantly positive slopes; however, model 6 includes Period and an interaction (both of which aren't significant)
-#summary(all.mod.mixed1)
-cat("Summary output for the best GLM Inclusive model for shore crabs")
-summary(all.mod.mixed6)
-#maybe go with model 6 because in addition to support a positive slope, it suggests there is no difference between periods, but also less variables make it easier to interpret
-```
-
-Shore crabs had two good models; however, one included period and an interaction with temperature, but the other one did not. Both had great fits, but I'll go with the model including the period interaction since it can tell us that period has no effect on the model.
-
-Next up is green crabs. Again, their distribution is normal, so I'll try using normal GLMs.
-
-```{R, include = FALSE,echo=FALSE,fig.keep='all', fig.width=7, fig.height=5, warning = FALSE}
-#CM-----------------------------------------------------------------------------
-
-inclusivesub <- subset(finalEatInclusive, finalEatInclusive$Species.x == "CM")
-hist(inclusivesub$proportion.eaten, main = "Distribution of inclusive model for green crabs")
-
-#dredge function returns that period is not important to the model, so I'll leave it out
-all.mod.mixed <- glm(proportion.eaten ~ Temperature*Period, data = inclusivesub, na.action = "na.fail")
-#dredge(all.mod.mixed)
-
-#model 3 is the best and the glm fits well
-all.mod.mixed1 <- glm(proportion.eaten ~ 1, data = inclusivesub, na.action = "na.fail")
-all.mod.mixed2 <- glm(proportion.eaten ~ Temperature, data = inclusivesub, na.action = "na.fail")
-all.mod.mixed3 <- glm(proportion.eaten ~ Temperature+Period, data = inclusivesub, na.action = "na.fail")
-all.mod.mixed4 <- glm(proportion.eaten ~ Temperature*Period, data = inclusivesub, na.action = "na.fail")
-#AIC(all.mod.mixed1, all.mod.mixed2, all.mod.mixed3, all.mod.mixed4)
-
-par(mfrow = c(2,2))
-plot(all.mod.mixed3, main = "Inclusive model for green crabs")
-#plot(all.mod.mixed4)
-#model 3 is the best fit
-
-cat("Summary output for the best GLM Inclusive model for green crabs")
-summary(all.mod.mixed3)
-#there is a difference between periods, and no difference for temperature it is not increasing or decreasing over temperature 
-```
-
-Green crabs had a good fitting model. The temperature had no effect on proportion consumption for green crabs and there was a slight difference in period between the two.
-
-Next is rock crabs. Their distribution is a bit odd? I'll try normal and Gamma first then zero-inflated if I have to.
-
-```{R, include = FALSE,echo=FALSE,fig.keep='all', fig.width=7, fig.height=5, warning = FALSE}
-#CI-----------------------------------------------------------------------------
-inclusivesub <- subset(finalEatInclusive, finalEatInclusive$Species.x == "CI")
-hist(inclusivesub$proportion.eaten, main = "Distribution for inclusive model rock crabs")
-
-all.mod.mixed <- glm(proportion.eaten ~ Temperature*Period, data = inclusivesub, na.action = "na.fail")
-#dredge(all.mod.mixed)
-
-#ehhh kind of fit - maybe try turning everything above 0 to try Gamma - Gamma does not work, much worse fit
-par(mfrow = c(2,2))
-plot(all.mod.mixed, main = "Inclusive model for rock crabs")
-cat("Inclusive model for rock crabs summary output.")
-summary(all.mod.mixed)
-
-#Moving on to zero-inflation
-#ziGamma - inverse, poor
-#inclusivesub$proportion.eaten <- ifelse(inclusivesub$proportion.eaten <= 0, 0.001, inclusivesub$proportion.eaten)
-#ZIglm1 <- glmmTMB(proportion.eaten ~ Temperature*Period, data = inclusivesub, ziformula = ~1, family = ziGamma((link= "inverse")),na.action = "na.fail")
-#dredge(ZIglm1)
-
-#this model looks good!
-#ZIglm1 <- glmmTMB(proportion.eaten ~ Temperature + Period, data = inclusivesub, #ziformula = ~Temperature, family = ziGamma((link= "log")),na.action = "na.fail")
-#ZIglm.resids <- simulateResiduals(ZIglm1)
-#cat("Inclusive model for rock crabs")
-#plot(ZIglm.resids)
-#cat("Summary output for the best zero-inflated model for rock crabs")
-#summary(ZIglm1)
-```
-
-The normal GLM looks the best!
 
 EXTRAS
 
