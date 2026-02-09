@@ -1465,6 +1465,7 @@ I'll first model all the data in the censor model (all species). I'm trying zero
 #plot(ZIglm.resids)
 
 #here begins CHATGPT models (meeting with Brian)
+finalEatCensor <- subset(censor, censor$WeekNum == 3) # | censor$WeekNum == 2
 sum(finalEatCensor$proportion.eaten == 0)
 
 finalEatCensor$binaryfed <- ifelse(finalEatCensor$amount.eaten > 0, 1, 0)
@@ -1529,13 +1530,6 @@ zero_model <- glmmTMB(
   data = finalEatCensor
 )
 
-br_zero_model <- brglm(
-  binaryfed ~ Species.x*Temperature + as.factor(Period),
-  family = binomial,
-  data = finalEatCensor
-)
-summary(br_zero_model)
-
 #need to fix zero model and write in results summary in document
 #also need to review what you wrote and make corrections
 #make comparisons with Cheng et al 2014
@@ -1561,6 +1555,7 @@ sim_res_zero <- simulateResiduals(fittedModel = zero_model, n = 1000)
 # Basic diagnostic plots
 plot(sim_res_zero)                  # uniformity, QQ, residuals vs predicted
 plot(sim_res_zero, type = "predicted") # residuals vs fitted values
+
 
 # Test for over/underdispersion and zero-inflation
 testDispersion(sim_res_zero)
@@ -1633,7 +1628,7 @@ temp_seq <- seq(
 pred_df <- expand.grid(
   Temperature = temp_seq,
   Species.x = c("CI", "CM", "HS"),
-  Period = unique(finalEatCensor$Period)[1]  # pick any level
+  Period = unique(finalEatCensor$Period)[2]  # pick any level
 )
 
 pred_link <- predict(
@@ -1961,4 +1956,30 @@ ggplot(weight_df, aes(x = as.factor(species), y = as.numeric(dif), fill = specie
                                "Irroratus" = "darkorange"))+
   geom_hline(yintercept = 0, color = "red", linetype = "dashed", size = 0.5) + ggtitle("Weight change of each species over the whole experiment")+
   facet_wrap(~as.factor(Temperature))+xlab("Species") + ylab("Weight Change (g)")
+```
+
+Food effects
+```{R}
+ggplot(finalEatCensor, aes(x = Food, y = proportion.eaten, fill = Species.x)) + 
+  geom_boxplot()+
+  facet_grid(Period~as.factor(Temperature))
+
+subcensor <- subset(finalEatCensor, finalEatCensor$Species.x == "CI")
+mod <- glm(proportion.eaten ~ Food*Temperature + Period, data = subcensor)
+par(mfrow = c(2,2))
+plot(mod)
+summary(mod)
+
+subcensor <- subset(finalEatCensor, finalEatCensor$Species.x == "CM")
+mod <- glm(proportion.eaten ~ Food*Temperature + Period, data = subcensor)
+par(mfrow = c(2,2))
+plot(mod)
+summary(mod)
+
+subcensor <- subset(finalEatCensor, finalEatCensor$Species.x == "HS")
+mod <- glm(proportion.eaten ~ Food*Temperature + Period, data = subcensor)
+par(mfrow = c(2,2))
+plot(mod)
+summary(mod)
+
 ```
