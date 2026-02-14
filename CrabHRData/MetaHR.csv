@@ -1,0 +1,31 @@
+DateTrial,Trial,Input,CL,WW,Species,Condition,Sex,Breakpoints,System,Notes
+8/4/25,1,0,21,4.23,Hemi,,male,1,main,first 10 minutes no air
+8/4/25,1,1,20,3.85,Hemi,,male,1,main,first 10 minutes no air
+8/11/25,2,0,53,21.69,Cancer,Shell disease,male,1,main,
+8/11/25,3,0,19,3.44,Hemi,,male,1,dry,
+8/11/25,3,1,22,5.71,Hemi,,male,1,dry,
+8/12/25,4,0,64,52.17,Carcinus,,female,1,main,raw system down - found in 23 C degree water - let rested for additional 30 minutes before ramping from 17
+8/12/25,5,0,53,20.76,Cancer,,male,1,dry,raw system down - found in 23 C degree water - let rested for additional 30 minutes before ramping from 18
+8/12/25,5,1,41,10.61,Cancer,,female,1,dry,raw system down - found in 23 C degree water - let rested for additional 30 minutes before ramping from 19
+8/13/25,6,0,22,5,Hemi,missing one leg,male,2,main,"8/12/25 - found raw seawater pump to be disconnected - animals experienced heatshock, Set up at 9:30 and started at 11"
+8/13/25,6,1,20,3.11,Hemi,,male,1,main,Set up at 9:30 and started at 11
+8/13/25,7,0,62,52.6,Carcinus,missing 3 legs,male,1,dry,Set up at 9:30 and started at 11
+8/14/25,8,0,68,45.16,Cancer,missing 1 leg,male,1,dry,pico log giving odd readings at the start but eventually gave within 1 degree correct temperatures - suspect it's one degree above where it's supposed to be
+8/14/25,9,1,20,3.58,Hemi,,male,1,main,
+8/14/25,9,0,21,4.1,Hemi,,male,1,main,
+8/15/25,10,0,56,41.32,Carcinus,missing one leg,male,1,main,"Found eating before trial... Sensor fell into water before as well, lot of feedback but signal still present"
+8/15/25,11,0,53,22.84,Cancer,,female,1,dry,Seawater system is down - moving crabs to ocean
+8/18/25,12,0,60,44.86,Carcinus,missing one claw and one leg,female,1,main,
+8/19/25,13,0,54,24.22,Cancer,,male,1,dry,
+8/19/25,14,0,19,3.49,Hemi,,male,1,main,
+8/19/25,14,1,20,4.26,Hemi,,male,1,main,
+8/20/25,15,0,70,55.87,Carcinus,missing 2 legs and one claw,female,1,main,
+8/20/25,16,0,70,43.49,Cancer,,male,1,dry,
+8/21/25,17,0,56,36.47,Carcinus,missing 5 legs,male,1,main,"ran out of hemis - skipping hemis, questionable acclimation period, most likely over 2 weeks with the rest"
+8/21/25,18,0,39,8.68,Cancer,,male,1,dry,
+8/21/25,18,1,41,10.51,Cancer,missing 2 legs,male,1,dry,
+8/22/25,19,0,46,54.18,Carcinus,Missing 7 legs,male,1,dry,legs fell off before trial - maybe eaten? Had 4 legs previous
+8/22/25,20,0,43,10.12,Cancer,"missing 2 legs, back of shell cracked (above heart)",male,1,main,
+8/22/25,20,1,46,15.12,Cancer,,female,1,main,
+8/26/25,21,0,54,36.19,Carcinus,missing 1 leg,male,1,main,
+8/27/25,22,0,70,47.91,Carcinus,,male,1,main,"sensor rained on overnight - bad signal reglued for next day, temp recording start at 19 C, but ramped as appropriate"
