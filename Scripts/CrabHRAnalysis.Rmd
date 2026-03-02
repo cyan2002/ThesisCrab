@@ -1,8 +1,17 @@
 ---
 title: "CrabHRAnalysis"
 output: html_document
+date: "2026-03-02"
+output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
+# Chance's crab HR data methods and analysis
+
+Last edited by: 3/2/26
+
+Methods:
 
 ```{R, include = FALSE}
 #this portion of the code gathers all the data together for analysis and converts it to arrhenius for the breaking point
