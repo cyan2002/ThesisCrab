@@ -4,6 +4,8 @@ library(tidyverse)
 library(quantmod)
 library(dplyr)
 library(ggrepel) 
+library(segmented)
+library(segmented)
 
 #combining data
 {
@@ -48,7 +50,6 @@ individuallist <-unique(heartrates$uniqueID)
 #par(mfrow=c(4,4))
 
 #selgemented function (ABT)
-library(segmented)
 for(i in individuallist[1:length(individuallist)]) {
   indiv=subset(heartrates,heartrates$uniqueID == i)
   out.lm<-lm(y~x, data=indiv)
@@ -65,7 +66,6 @@ for(i in individuallist[1:length(individuallist)]) {
 a=0
 
 #selgemented function (regulatr data)
-library(segmented)
 for(i in individuallist[1:length(individuallist)]) {
   indiv=subset(heartrates,heartrates$uniqueID == i)
   print(i)
@@ -267,10 +267,20 @@ heartrates2 = heartrates
 flatlines <- subset(heartrates, heartrates$confidence == "Zero")
 
 {
-  #exceptions
+  #exceptions - temperature recording
   flatlines <- subset(flatlines, flatlines$uniqueID != "1_Trial6")
   flatlines <- subset(flatlines, flatlines$uniqueID != "1_Trial14")
   flatlines <- subset(flatlines, flatlines$uniqueID != "1_Trial20")
+  
+  #Trial 3 input 1 - FLT is later, I saw it with my own eyes too tired to go thru it now (HS)
+  #Trial 21 input 0 - FLT difficult to parse thru noise, ABT reliable (CM)
+  #Trial 17 input 0 - FLT difficult to parse thru noise, ABT reliable (CM)
+}
+
+{
+  flatlines <- subset(flatlines, flatlines$uniqueID != "1_Trial3")
+  flatlines <- subset(flatlines, flatlines$uniqueID != "0_Trial21")
+  flatlines <- subset(flatlines, flatlines$uniqueID != "0_Trial17")
 }
 
 library(emmeans)
@@ -279,11 +289,20 @@ library(emmeans)
 
 table(flatlines$Species, flatlines$Sex)
 
+#basic graphs overviewing ABT and FLT among the three species
 ggplot(flatlines, aes(x = Species, y = temperature, fill = Species)) + geom_boxplot()
 
-ggplot(flatlines, aes(x = Species, y = ABT)) + geom_boxplot()
+ggplot(flatlines, aes(x = Species, y = ABT, fill = Species)) + geom_boxplot()
 
+#simple modeling for ABT and flatlines
 mod <- glm(temperature ~ Species, data = flatlines)
+summary(mod)
+par(mfrow = c(2,2))
+plot(mod)
+emm <- emmeans(mod, ~ Species)
+pairs(emm)
+
+mod <- glm(ABT ~ Species, data = flatlines)
 summary(mod)
 par(mfrow = c(2,2))
 plot(mod)
@@ -297,3 +316,10 @@ pairs(emm)
 ggplot(flatlines, aes(x = WW, y = temperature, color = Species, label = uniqueID)) + 
   geom_point()+
   geom_text(hjust=0, vjust=0)
+
+ggplot(flatlines, aes(x = WW, y = ABT, color = Species, label = uniqueID)) + 
+  geom_point()+
+  geom_text(hjust=0, vjust=0)
+
+
+#3 obvious outliers, 1-3, 0-17, 0-21
