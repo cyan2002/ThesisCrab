@@ -1,17 +1,46 @@
 ---
-title: "CrabHRAnalysis"
-output: html_document
-date: "2026-03-02"
-output: html_document
-editor_options: 
+output:
+  word_document: default
+  html_document: default
+editor_options:
   chunk_output_type: console
 ---
 
 # Chance's crab HR data methods and analysis
 
-Last edited by: 3/2/26
+Last edited by Chance on 3/3/26
 
-Methods:
+#### Notes:
+
+-   Trial refers to an animal's heart rate recording session, typically consisting of one or two inputs (input 0 and 1) where each input is an individual crab.
+
+-   ABT - breaking point (first decrease in heart rate), FLT, flatline temperature (when heart rate = 0)
+
+#### Question: What are the acute thermal limits of the New England shallow rocky intertidal crabs?
+
+#### Hypothesis:
+
+#### Predictions
+
+-   Green crabs and Asian shore crabs will have a higher flatline and breaking point temperature compared to Atlantic rock crabs.
+
+-   All crabs will have the same flatline and breaking point temperature
+
+-   Green crabs and Asian shore crabs will have higher flatline temperatures, but their breaking point temperatures will be similar to Atlantic rock crabs.
+
+#### Methods:
+
+Animal Collection: We collected animals on SCUBA and intertidally in July and August 2025 in Gloucester Massachusetts. Animals were kept in flow-through sea water tanks and fish traps in the ocean. We collected juvenile *Cancer irroratus* (Atlantic rock crab)*,* adult *Carcinus meanus* (green crab)*,* and adult *Hemigrapsus sanguineus* (Asian shore crab). We used juvenile Atlantic rock crabs because adults would not fit inside the heart rate water bath.
+
+Heart Rate Trials: Heart rate trials took place during August at Gloucester Marine Station (GMS). We took crabs from the flow-through sea water tanks or fish traps and attached an infrared sensor to the top of the crab's carapace to position it right above the heart. We used dentist wax to find the heart rate signal and finalized the attachment with super glue. Afterwards, we left the crabs overnight in flow through water to acclimate to the sensor. The next day, we placed the crabs into a plastic jar with seawater fitted with a temperature sensor. The jars were then placed in a water bath at 17°C. We left the animals in the water bath at 17°C for 5 minutes to allow the crabs to acclimate to it's environment and reduce the heart rate. After 5 minutes, we increased the temperature at a rate of .1°C/min until the temperature hit 45°C.
+
+#### Analysis (post heart rate identification):
+
+-   After deciding what is a heart rate and or not, I collect all the data to combine it into one dataframe in R
+
+-   from that dataframe, I convert to arrhenius (to make it comparable to the snail heart rate dataset)
+
+-   I then extract FLTs and ABTs from the data to make results
 
 ```{R, include = FALSE}
 #this portion of the code gathers all the data together for analysis and converts it to arrhenius for the breaking point
@@ -277,15 +306,25 @@ heartrates = merge(heartrates, allbreakpointlist)
 heartrates2 = heartrates
 ```
 
+#### Results:
+
+Overall, the data looks okay. There are 6 individuals which we should think about what to do about.
+
+3 temperature data corruptions
+
+-   Unfortunately, 3 individuals had corrupted temperature data and could not be recovered. While this is concerning there still was a temperature recording in the same exact trial but in another jar (it was always input 1 (or second individual in the trial).
+
+-   Additionally, when using the temperature data from the other input within the same trial, their values show up as expected.
+
+Outliers
+
+-   There were some outliers that have much lower ABTs and FLTs
+
+-   Removing them affects the outcome of the model (whether green crabs and Asian shore crabs are statistically equal or not)
+
 ```{R}
 flatlines <- subset(heartrates, heartrates$confidence == "Zero")
-
-table(flatlines$Species, flatlines$Sex)
-
-#Cancer total: 11
-#Carcinus total: 9
-#Hemi Total: 10
-#sexes are not even - difficult to preform a model including sex?
+flatlines_og <- subset(heartrates, heartrates$confidence == "Zero")
 
 {
   #exceptions - temperature recording did not go through for data, some bug or something...
@@ -305,12 +344,60 @@ table(flatlines$Species, flatlines$Sex)
   flatlines <- subset(flatlines, flatlines$uniqueID != "0_Trial21")
   flatlines <- subset(flatlines, flatlines$uniqueID != "0_Trial17")
 }
+```
 
+Basic Information on the dataset
+
+```{R}
+cat("original dataset, no removals")
+table(flatlines_og$Species, flatlines_og$Sex)
+
+cat("adjusted dataset")
+table(flatlines$Species, flatlines$Sex)
+```
+
+Outlier Hunt - There are 3 very clear different ones
+
+```{R}
+ggplot(flatlines, aes(x = WW, y = temperature, color = Species, label = uniqueID)) + 
+  geom_point()+
+  geom_text(hjust=0, vjust=0) + ggtitle("FLTs Across Wet Weights - Modified Dataset")
+
+ggplot(flatlines, aes(x = WW, y = ABT, color = Species, label = uniqueID)) + 
+  geom_point()+
+  geom_text(hjust=0, vjust=0) + ggtitle("ABTs Across Wet Weights - Modified Dataset")
+
+ggplot(flatlines_og, aes(x = WW, y = temperature, color = Species, label = uniqueID)) + 
+  geom_point()+
+  geom_text(hjust=0, vjust=0) + ggtitle("FLTs Across Wet Weights - Original Dataset")
+
+ggplot(flatlines_og, aes(x = WW, y = ABT, color = Species, label = uniqueID)) + 
+  geom_point()+
+  geom_text(hjust=0, vjust=0) + ggtitle("ABTs Across Wet Weights - Original Dataset")
+
+#3 obvious outliers, 1-3, 0-17, 0-21
+```
+
+Overview of each dataset
+
+```{R}
 #basic graphs overviewing ABT and FLT among the three species
-ggplot(flatlines, aes(x = Species, y = temperature, fill = Species)) + geom_boxplot()
+ggplot(flatlines, aes(x = Species, y = temperature, fill = Species)) + geom_boxplot() + ggtitle("Flatline Temperatures Across Species - Adjusted Dataset") + theme(legend.position = "none") + xlab("Species") + ylab("Temperature")
 
-ggplot(flatlines, aes(x = Species, y = ABT, fill = Species)) + geom_boxplot()
+ggplot(flatlines, aes(x = Species, y = temperature, fill = Species)) + geom_boxplot() + ggtitle("Flatline Temperatures Across Species - Original Dataset") + theme(legend.position = "none") + xlab("Species") + ylab("Temperature")
 
+ggplot(flatlines, aes(x = Species, y = ABT, fill = Species)) + geom_boxplot()+ ggtitle("Breaking Point Temperatures Across Species - Adjusted Dataset") + theme(legend.position = "none") + xlab("Species") + ylab("Temperature")
+
+ggplot(flatlines, aes(x = Species, y = ABT, fill = Species)) + geom_boxplot()+ ggtitle("Breaking Point Temperatures Across Species - Original Dataset") + theme(legend.position = "none") + xlab("Species") + ylab("Temperature")
+```
+
+Modeling the data All differences in question are between green crabs and Asian shore crabs I compared two models of ABT and FLT across the original dataset and the modified dataset resulting in 4 unique models
+
+Modified FLT - difference Modified ABT - no difference Original FLT - difference Original ABT - no difference
+
+Seems like it doesn't really matter if we include or exclude the data. the model shows the same either way. Diagnostic plots look okay. See below.
+
+```{R}
 #simple modeling for ABT and flatlines
 mod <- glm(temperature ~ Species, data = flatlines)
 summary(mod)
@@ -326,18 +413,29 @@ plot(mod)
 emm <- emmeans(mod, ~ Species)
 pairs(emm)
 
+mod <- glm(temperature ~ Species, data = flatlines_og)
+summary(mod)
+par(mfrow = c(2,2))
+plot(mod)
+emm <- emmeans(mod, ~ Species)
+pairs(emm)
+
+mod <- glm(ABT ~ Species, data = flatlines_og)
+summary(mod)
+par(mfrow = c(2,2))
+plot(mod)
+emm <- emmeans(mod, ~ Species)
+pairs(emm)
+
+
 #removing individuals whose data did not get recorded (temperature) properly results in a signficant difference between green crabs and shore crabs
 #removing individuals removes significance while keeping them keeps that signifiance between the two groups
-
-
-ggplot(flatlines, aes(x = WW, y = temperature, color = Species, label = uniqueID)) + 
-  geom_point()+
-  geom_text(hjust=0, vjust=0)
-
-ggplot(flatlines, aes(x = WW, y = ABT, color = Species, label = uniqueID)) + 
-  geom_point()+
-  geom_text(hjust=0, vjust=0)
-
-
-#3 obvious outliers, 1-3, 0-17, 0-21
 ```
+
+#### My thoughts
+
+-   Asian shore crabs and green crabs have higher thermal limits than Atlantic rock crabs; however, Asian shore crabs have a higher FLT than green crabs, but similar breaking point temperatures.
+
+-   While this isn't exactly what the model said in the consumption dataset it's close. Asian shore crabs are eating the most (proportion wise) and it seems there a more positive trend then green crabs across temperature.
+
+-   Of course Atlantic rock crabs are far behind. Something that should be accounted for is that these rock crabs are juvenile (\< 70mm carapace length) and may have a lower thermal limit than adults.
