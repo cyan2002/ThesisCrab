@@ -340,25 +340,21 @@ ggplot(mastergraph, aes(x = Temperature, y = proportion, fill = dead)) + geom_co
 mastergraph <- master
 mastergraph$dead <- factor(mastergraph$dead, levels = c(0,1))
 
-ggplot(mastergraph, aes(x = Temperature, y = dead, color = Species)) + geom_point(position = position_jitter(width = 0.2)) +
-  geom_smooth(aes(group = 1), method = "lm", se = FALSE) +
+ggplot(mastergraph, aes(x = Temperature, y = dead, color = Species)) + geom_point(position = position_jitter(height = 0.1, width = 0.25)) +
   xlab("Temperature (°C)")+
-  ylab("Binary Indicating Dead (0) or Alive (1)")+
+  ylab("")+
   facet_wrap(~Species, labeller = as_labeller(c("Carcinus" = "Green Crab", "Hemigrapsus" = "Asian Shore Crab", "Irroratus" = "Rock Crab")))+
-  ggtitle("The counts of dead vs alive individuals") + 
+  ggtitle("Crab Survival") + 
   scale_color_manual(values = c("Carcinus" = "darkgreen",
                                     "Hemigrapsus" = "darkred",
                                     "Irroratus" = "darkorange"), labels = c("Green Crab", "Asian Shore Crab", "Rock Crab")) + theme_classic() +
     theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5)) +
-  theme(
-  legend.box.background = element_rect(color = "black", size = 1, linetype = "solid"),
-  legend.box.margin = margin(t = 5, r = 5, b = 5, l = 5, unit = "mm")
-) +
+  theme(legend.position = "none") +
   scale_x_continuous(breaks = c(18, 20, 22, 24, 26)) +
-  scale_y_discrete(breaks = c(0,1))
+  scale_y_discrete(labels = c("1" = "Alive", "0" = "Dead"),breaks = c(0,1))
   
 
-dat <- subset(mastergraph, mastergraph$Species == "Irroratus" & mastergraph$Temperature == 18 & mastergraph$dead == 0)
+dat <- subset(mastergraph, mastergraph$Species == "Irroratus" & mastergraph$Temperature == 22 & mastergraph$dead == 0)
 nrow(dat)
 
 ```
@@ -455,6 +451,65 @@ ggplot(holddf, aes(x = Temperature, y = dead)) +
     labels = scales::percent_format(accuracy = 1)
   )
 
+#---------------
+
+# First, build newdat for Irroratus only (your existing model code stays the same)
+holddf <- subset(master, master$Species == "Irroratus")
+best.mod <- brglm(dead ~ Temperature, family = binomial, data = holddf, na.action = "na.fail")
+
+newdat <- data.frame(Temperature = seq(min(holddf$Temperature), max(holddf$Temperature), length.out = 100))
+pred_link <- predict(best.mod, newdata = newdat, type = "link", se.fit = TRUE)
+newdat$fit <- pred_link$fit
+newdat$se  <- pred_link$se.fit
+newdat$lwr <- plogis(newdat$fit - 1.96 * newdat$se)
+newdat$upr <- plogis(newdat$fit + 1.96 * newdat$se)
+newdat$pred <- plogis(newdat$fit)
+
+# Add Species column so facet_wrap knows which panel to draw it in
+newdat$Species <- "Irroratus"
+mastergraph$dead <- as.numeric(as.character(mastergraph$dead))
+
+mastergraph$Species <- factor(mastergraph$Species, levels = c("Hemigrapsus", "Carcinus", "Irroratus"))
+newdat$Species <- factor(newdat$Species, levels = c("Hemigrapsus", "Carcinus", "Irroratus"))
+
+ggplot(mastergraph, aes(x = Temperature, y = dead, color = Species)) +
+  geom_point(position = position_jitter(height = 0.05, width = 0.25), , alpha = 0.5) +
+  geom_line(
+    data = newdat,
+    aes(x = Temperature, y = pred),
+    linewidth = 1,
+    color = "darkorange"
+  )+
+  geom_ribbon(
+    data = newdat,
+    aes(x = Temperature, ymin = lwr, ymax = upr),
+    fill = "darkorange",
+    alpha = 0.25,
+    inherit.aes = FALSE
+  )  +
+  xlab("Temperature (°C)") +
+  ylab("") +
+  facet_wrap(~Species, labeller = as_labeller(c(
+    "Hemigrapsus"  = "Asian Shore Crab",
+    "Carcinus"     = "Green Crab",
+    "Irroratus"    = "Rock Crab"
+  ))) +
+  ggtitle("Crab Survival") +
+  scale_color_manual(
+    values = c("Hemigrapsus" = "darkred", "Carcinus" = "darkgreen", "Irroratus" = "darkorange"),
+    labels = c("Asian shore Crab", "Green Crab", "Rock Crab")
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 15, face = "bold", hjust = 0.5),
+    legend.position = "none"
+  ) +
+  scale_x_continuous(breaks = c(18, 20, 22, 24, 26))+
+  scale_y_continuous(
+  limits = c(-0.1, 1.1),
+  breaks = c(0, 1),
+  labels = c("Dead", "Alive")
+)
 ```
 
 ### Acclimation: Are there differences in proportion eaten across week number for each species, temperature regime and time period?
@@ -574,6 +629,20 @@ ggplot(summary_censor, aes(x = as.numeric(WeekNum), y = mean, color = SpeciesPer
   scale_x_continuous(breaks = c(1, 2, 3))+
   ylab("Average proportion of body weight eaten (%)")
 
+summary_censor <- censor %>%
+  group_by(Species.x, Temperature, Period) %>%
+  summarise(
+    mean = mean(proportion.eaten),
+    se = sd(proportion.eaten) / sqrt(n())
+  )
+
+ggplot(summary_censor, aes(x = Temperature, y = mean, group = as.factor(Period), color = as.factor(Period))) + 
+         geom_point(position = position_dodge(width = 0.2)) +
+         facet_wrap(~Species.x)+ 
+  geom_line(position = position_dodge(width = 0.2))+
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se), position = position_dodge(width = 0.2)) + labs(color = "Period") +ylab("Proportion Eaten") + xlab("Temperature") + theme_classic()+
+  scale_color_manual(values = c("1" = "darkblue", "2" = "purple"))
+
 #going forward, I'll do data exploration with the censor model since the graphs looked very similar.
 
 #both response variables are skewed
@@ -611,6 +680,7 @@ Let's begin with green crabs since they are normal and "easier" to handle. In th
 
 ```{R echo=FALSE, warning=FALSE, message = FALSE, fig.width=7, fig.height=5}
 #GREEN CRABS------------------------------------------------------------------------
+library(tidyr)
 par(mfrow=c(2,2))
 
 #Temperature 18 - #No differences between week numbers and model fits well
@@ -691,6 +761,17 @@ pvals_df_26$Temperature <- as.factor(26)
 
 heat_df <- rbind(pvals_df_18, pvals_df_20, pvals_df_22, pvals_df_24, pvals_df_26)
 
+#making a table for publish
+library(kableExtra)
+library(dplyr)
+
+heat_df %>%
+  select(comp1, comp2, estimate, SE, p.value, Temperature) %>%   # pick your columns
+  kable(digits = 3,              # decimal places
+        col.names = c("Comparison 1", "Comparison 2", "Difference", "Standard Error", "P value", "Temperature Treatment"),  # rename columns
+        caption = "Differences between Proportion Eaten for each Week for Green Crabs")
+
+#heat map
 heat_df$signfi <- ifelse(heat_df$p.value < .05, "sig", "ns")
 
 ggplot(heat_df, aes(x = comp1, y = comp2, fill = signfi)) + 
@@ -850,6 +931,13 @@ pvals_df_26 <- pvals_df_26 %>%
 pvals_df_26$Temperature <- as.factor(26)
 
 heat_df <- rbind(pvals_df_18, pvals_df_20, pvals_df_22, pvals_df_24, pvals_df_26)
+
+heat_df %>%
+  select(comp1, comp2, estimate, SE, p.value, Temperature) %>%   # pick your columns
+  kable(digits = 3,              # decimal places
+        col.names = c("Comparison 1", "Comparison 2", "Difference", "Standard Error", "P value", "Temperature Treatment"),  # rename columns
+        caption = "Differences between Proportion Eaten for each Week for Asian Shore Crabs")
+
 
 heat_df$signfi <- ifelse(heat_df$p.value < .05, "sig", "ns")
 
@@ -1043,6 +1131,13 @@ pvals_df_26$Temperature <- as.factor(26)
 
 heat_df <- rbind(pvals_df_18, pvals_df_20, pvals_df_22, pvals_df_24, pvals_df_26)
 
+heat_df %>%
+  select(comp1, comp2, estimate, SE, p.value, Temperature) %>%   # pick your columns
+  kable(digits = 3,              # decimal places
+        col.names = c("Comparison 1", "Comparison 2", "Difference", "Standard Error", "P value", "Temperature Treatment"),  # rename columns
+        caption = "Differences between Proportion Eaten for each Week for Rock Crabs")
+
+
 heat_df$signfi <- ifelse(heat_df$p.value < .05, "sig", "ns")
 
 ggplot(heat_df, aes(x = comp1, y = comp2, fill = signfi)) + 
@@ -1194,6 +1289,13 @@ pvals_df_HS$Species <- as.factor("HS")
 #COMBINGING ALL SPECIES FOR PERIOD DIFFERENCES TOGETHER
 
 period_diff <- rbind(pvals_df_CI, pvals_df_CM, pvals_df_HS)
+
+period_diff %>%
+  select(comp1, comp2, estimate, SE, p.value, Temperature, Species) %>%   # pick your columns
+  kable(digits = 3,              # decimal places
+        col.names = c("Comparison 1", "Comparison 2", "Difference", "Standard Error", "P value", "Temperature Treatment", "Species"),  # rename columns
+        caption = "Differences between Proportion Eaten Across Time Blocks")
+
 
 period_diff$significant <- ifelse(period_diff$p.value <= 0.05, "sig", "ns")
 
@@ -1499,9 +1601,54 @@ pos_model <- glmmTMB(
   data = data, na.action = "na.fail"
 )
 
-dredge(pos_model3)
+zero_model <- glmmTMB(
+  binaryfed ~ Species.x*Temperature + as.factor(Period) + 
+                  (1 | ID) + (1 | runID),
+  family = binomial,
+  data = finalEatCensor
+)
 
-ggplot(aes(x = as.factor(Temperature), y = (proportion.eaten), fill = Species.x), data = subcensor) + 
+data2 = subset(finalEatCensor, proportion.eaten > 0 & Species.x == "CI")
+# Hurdle model: zeros vs positives (binomial) + positive consumption (Gamma)
+
+data2$temp_squared <- data2$Temperature^2
+
+#SOLO ROCK CRAB MODEL
+pos_model2 <- glm(
+  proportion.eaten ~ Temperature + temp_squared,
+  data = data2, na.action = "na.fail"
+)
+
+summary(pos_model)
+sim_res_pos <- simulateResiduals(fittedModel = pos_model, n = 1000)
+# Basic diagnostic plots
+plot(sim_res_pos)                  # uniformity, QQ, residuals vs predicted
+plot(sim_res_pos, type = "predicted") # residuals vs fitted values
+# Test for over/underdispersion and zero-inflation
+testDispersion(sim_res_pos)
+testZeroInflation(sim_res_pos)  # should be low for positive model
+testOutliers(sim_res_pos)
+
+summary(pos_model2)
+plot(pos_model2)
+
+summary(zero_model)
+# Simulate DHARMa residuals
+sim_res_zero <- simulateResiduals(fittedModel = zero_model, n = 1000)
+# Basic diagnostic plots
+plot(sim_res_zero)                  # uniformity, QQ, residuals vs predicted
+plot(sim_res_zero, type = "predicted") # residuals vs fitted values
+# Test for over/underdispersion and zero-inflation
+testDispersion(sim_res_zero)
+testZeroInflation(sim_res_zero)  # should be low for positive model
+
+
+#in a Gamma inverse model, the slope is not constant, changes
+
+# Simulate DHARMa residuals
+sim_res_pos <- simulateResiduals(fittedModel = pos_model, n = 1000)
+
+ggplot(aes(x = as.factor(Temperature), y = (proportion.eaten), fill = Species.x), data = data) + 
   geom_boxplot() + 
   facet_wrap(~Species.x, labeller = 
                labeller(Species.x = c("CI" = "Rock Crab", "CM" = "Green Crab", "HS" = "Asian Shore Crab"))) + 
@@ -1513,26 +1660,6 @@ ggplot(aes(x = as.factor(Temperature), y = (proportion.eaten), fill = Species.x)
   ylab("Log Proportion Eaten (% of Body Weight)") +
   ggtitle("Proportion Eaten (% Body Weight) for each Temperature Treatment")
 
-# Simulate DHARMa residuals
-sim_res_pos <- simulateResiduals(fittedModel = pos_model, n = 1000)
-
-# Basic diagnostic plots
-plot(sim_res_pos)                  # uniformity, QQ, residuals vs predicted
-
-# Test for over/underdispersion and zero-inflation
-testDispersion(sim_res_pos)
-testZeroInflation(sim_res_pos)  # should be low for positive model
-
-zero_model <- glmmTMB(
-  binaryfed ~ Species.x*Temperature + as.factor(Period) + 
-                  (1 | ID) + (1 | runID),
-  family = binomial,
-  data = finalEatCensor
-)
-
-#need to fix zero model and write in results summary in document
-#also need to review what you wrote and make corrections
-#make comparisons with Cheng et al 2014
 
 ggplot(finalEatCensor, aes(x = as.factor(Temperature), fill = as.factor(binaryfed))) +
   geom_bar(position = "fill") + 
@@ -1546,29 +1673,17 @@ ggplot(finalEatCensor, aes(x = as.factor(Temperature), fill = as.factor(binaryfe
   ylab("Percentage (%)") +
   ggtitle("Percentage of Whether the Crab Ate or Not")
 
-dat <- subset(finalEatCensor, finalEatCensor$Species.x == "HS" & finalEatCensor$binaryfed == 0)
-nrow(dat)
-
-# Simulate DHARMa residuals
-sim_res_zero <- simulateResiduals(fittedModel = zero_model, n = 1000)
-
-# Basic diagnostic plots
-plot(sim_res_zero)                  # uniformity, QQ, residuals vs predicted
-plot(sim_res_zero, type = "predicted") # residuals vs fitted values
-
-
-# Test for over/underdispersion and zero-inflation
-testDispersion(sim_res_zero)
-testZeroInflation(sim_res_zero)  # should be low for positive model
-
-summary(pos_model)
-summary(zero_model)
-
-
-
-#in a Gamma inverse model, the slope is not constant, changes
+ggplot(aes(x = as.factor(Temperature), y = (proportion.eaten)), data = data2) + 
+  geom_boxplot() +
+  theme_classic() +
+  theme(plot.title = element_text(size = 15, face = "bold", hjust = 0))+
+  xlab("Temperature (°C)")+
+  ylab("Proportion Eaten") +
+  ggtitle("Proportion Eaten for each Temperature Treatment")
 
 ```
+
+Mapping Predictions
 
 ```{R}
 # realistic temperature range
@@ -1578,7 +1693,7 @@ temp_seq <- seq(min(data$Temperature), max(data$Temperature), length.out = 100)
 pred_df <- expand.grid(
   Temperature = temp_seq,
   Species.x = c("CI", "CM", "HS"),
-  Period = 1  # pick a period to hold constant
+  Period = as.factor(1)  # pick a period to hold constant
 )
 
 pred_link <- predict(pos_model, newdata = pred_df, type = "link", se.fit = TRUE, re.form = NA)
@@ -1587,36 +1702,61 @@ pred_df <- pred_df %>%
   mutate(
     fit_link = pred_link$fit,
     se_link = pred_link$se.fit,
-    lower = 1 / (fit_link + 1.96 * se_link),
-    upper = 1 / (fit_link - 1.96 * se_link),
-    proportion_eaten = 1 / fit_link
+    proportion_eaten = 1 / fit_link,
+    lower = 1 / (fit_link + 1.96 * se_link),  # note: bounds flip because 1/x is decreasing
+    upper = 1 / (fit_link - 1.96 * se_link)
   )
 
 ggplot(pred_df, aes(x = Temperature, y = proportion_eaten, color = Species.x)) +
-  geom_line(size = 1.2) +
+  geom_point(data = data, aes(x = Temperature, y = proportion.eaten, color = Species.x),
+             position = position_jitter(width = 0.1), alpha = 0.5, inherit.aes = FALSE) +
+  geom_line(linewidth = 1.2) +
   geom_ribbon(aes(ymin = lower, ymax = upper, fill = Species.x), alpha = 0.2, color = NA) +
-  theme_minimal() +
-  labs(
-    color = "Species",
-    y = "Predicted Proportion Eaten",
-  ) + ggtitle("Predicted Proportion Eaten Across Temperature") + 
-  scale_color_manual(limits = c("HS", "CM", "CI"), 
-                     values = c("CI" = "darkorange",
-                                "CM" = "darkgreen",
-                                "HS" = "darkred"),
-                     labels = c("CI" = "Rock Crab",
-                                "CM" = "Green Crab",
-                                "HS" = "Asian Shore Crab"))+
-  scale_fill_manual(values = c("CI" = "darkorange",
-                                "CM" = "darkgreen",
-                                "HS" = "darkred"))+
-  guides(fill = "none")+
   theme_classic() +
-  theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5))+
-  xlab("Temperature (°C)")+
-  ylab("Predicted Proportion (% Body Weight) Eaten") 
+  labs(color = "Species") +
+  ggtitle("Predicted Proportion Eaten Across Temperature") +
+  scale_color_manual(limits = c("HS", "CM", "CI"),
+                     values = c("CI" = "darkorange", "CM" = "darkgreen", "HS" = "darkred"),
+                     labels = c("CI" = "Rock Crab", "CM" = "Green Crab", "HS" = "Asian Shore Crab")) +
+  scale_fill_manual(values = c("CI" = "darkorange", "CM" = "darkgreen", "HS" = "darkred")) +
+  guides(fill = "none") +
+  theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5)) +
+  xlab("Temperature (°C)") +
+  ylab("Predicted Proportion (% Body Weight) Eaten")+scale_y_continuous(trans = "log10")
 
+#Rock crab prediction looks different from what we would expect (curve is different, try doing only rock crabs.)
 
+temp_seq <- seq(min(data2$Temperature), max(data2$Temperature), length.out = 100)
+
+# new data frame for predictions
+pred_df <- data.frame(
+  Temperature = temp_seq,
+  temp_squared = temp_seq^2
+)
+
+pred_link <- predict(pos_model2, newdata = pred_df, se.fit = TRUE, re.form = NA)
+
+pred_df <- pred_df %>%
+  mutate(
+    fit = pred_link$fit,
+    se = pred_link$se.fit,
+    lower = fit - 1.96 * se,
+    upper = fit + 1.96 * se,
+    proportion_eaten = fit
+  )
+
+ggplot(aes(x = Temperature, y = proportion.eaten), data = data2) +
+  geom_point() +
+  geom_ribbon(data = pred_df, aes(x = Temperature, ymin = lower, ymax = upper),
+              alpha = 0.2, inherit.aes = FALSE) +
+  geom_line(data = pred_df, aes(x = Temperature, y = proportion_eaten),
+            linewidth = 1.2, inherit.aes = FALSE) +
+  theme_classic() +
+  xlab("Temperature (°C)") +
+  ylab("Proportion Eaten") + 
+  ggtitle("Predicted Amount Eaten for Atlantic Rock Crabs")
+
+#Survival binary data
 library(dplyr)
 
 temp_seq <- seq(
@@ -1652,12 +1792,15 @@ pred_df <- pred_df |>
 library(ggplot2)
 
 ggplot(pred_df, aes(x = Temperature, y = prob, color = Species.x)) +
-  geom_line(linewidth = 1.2) +
+  geom_point(data = finalEatCensor, aes(x = Temperature, y = binaryfed, color = Species.x),
+             position = position_jitter(height = 0.1, width = 0.25),
+             alpha = 0.5, inherit.aes = FALSE) +
   geom_ribbon(
     aes(ymin = lower, ymax = upper, fill = Species.x),
     alpha = 0.25,
     color = NA
   ) +
+  geom_line(linewidth = 1.2) +
   theme_classic() +
   labs(
     x = "Temperature (°C)",
@@ -1665,26 +1808,17 @@ ggplot(pred_df, aes(x = Temperature, y = prob, color = Species.x)) +
     color = "Species"
   ) +
   scale_color_manual(
-    values = c("CI" = "darkorange",
-               "CM" = "darkgreen",
-               "HS" = "darkred"),
-    labels = c("CI" = "Rock Crab",
-               "CM" = "Green Crab",
-               "HS" = "Asian Shore Crab")
+    values = c("CI" = "darkorange", "CM" = "darkgreen", "HS" = "darkred"),
+    labels = c("CI" = "Rock Crab", "CM" = "Green Crab", "HS" = "Asian Shore Crab")
   ) +
   scale_fill_manual(
-    values = c("CI" = "darkorange",
-               "CM" = "darkgreen",
-               "HS" = "darkred")
+    values = c("CI" = "darkorange", "CM" = "darkgreen", "HS" = "darkred")
   ) +
-  guides(fill = "none")+
-  ggtitle("Predicted Probability of a Crab Eating at Temperature")+
+  guides(fill = "none") +
+  ggtitle("Predicted Probability of a Crab Eating at Temperature") +
   theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5))
 
-
 ```
-
-
 
 The normal GLM fit the best; however, it ranked lower on the AIC. There were other higher ranking models according to the AIC but the diagnostic plots proved problematic. Models okay, let's compare these to the inclusive model and see how they fit over that data.
 
@@ -1959,6 +2093,7 @@ ggplot(weight_df, aes(x = as.factor(species), y = as.numeric(dif), fill = specie
 ```
 
 Food effects
+
 ```{R}
 ggplot(finalEatCensor, aes(x = Food, y = proportion.eaten, fill = Species.x)) + 
   geom_boxplot()+
