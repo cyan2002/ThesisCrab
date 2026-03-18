@@ -1593,60 +1593,7 @@ holddf <- finalEatCensor
 holddf$proportion.eaten <- ifelse(holddf$proportion.eaten == 0, .001, holddf$proportion.eaten)
 
 data = subset(finalEatCensor, proportion.eaten > 0)
-# Hurdle model: zeros vs positives (binomial) + positive consumption (Gamma)
-pos_model <- glmmTMB(
-  proportion.eaten ~ Species.x*Temperature + as.factor(Period) + 
-                (1 | ID) + (1 | runID),
-  family = Gamma(link = "inverse"),
-  data = data, na.action = "na.fail"
-)
-
-zero_model <- glmmTMB(
-  binaryfed ~ Species.x*Temperature + as.factor(Period) + 
-                  (1 | ID) + (1 | runID),
-  family = binomial,
-  data = finalEatCensor
-)
-
-data2 = subset(finalEatCensor, proportion.eaten > 0 & Species.x == "CI")
-# Hurdle model: zeros vs positives (binomial) + positive consumption (Gamma)
-
-data2$temp_squared <- data2$Temperature^2
-
-#SOLO ROCK CRAB MODEL
-pos_model2 <- glm(
-  proportion.eaten ~ Temperature + temp_squared,
-  data = data2, na.action = "na.fail"
-)
-
-summary(pos_model)
-sim_res_pos <- simulateResiduals(fittedModel = pos_model, n = 1000)
-# Basic diagnostic plots
-plot(sim_res_pos)                  # uniformity, QQ, residuals vs predicted
-plot(sim_res_pos, type = "predicted") # residuals vs fitted values
-# Test for over/underdispersion and zero-inflation
-testDispersion(sim_res_pos)
-testZeroInflation(sim_res_pos)  # should be low for positive model
-testOutliers(sim_res_pos)
-
-summary(pos_model2)
-plot(pos_model2)
-
-summary(zero_model)
-# Simulate DHARMa residuals
-sim_res_zero <- simulateResiduals(fittedModel = zero_model, n = 1000)
-# Basic diagnostic plots
-plot(sim_res_zero)                  # uniformity, QQ, residuals vs predicted
-plot(sim_res_zero, type = "predicted") # residuals vs fitted values
-# Test for over/underdispersion and zero-inflation
-testDispersion(sim_res_zero)
-testZeroInflation(sim_res_zero)  # should be low for positive model
-
-
-#in a Gamma inverse model, the slope is not constant, changes
-
-# Simulate DHARMa residuals
-sim_res_pos <- simulateResiduals(fittedModel = pos_model, n = 1000)
+data$temp_squared <- data$Temperature^2
 
 ggplot(aes(x = as.factor(Temperature), y = (proportion.eaten), fill = Species.x), data = data) + 
   geom_boxplot() + 
@@ -1673,6 +1620,8 @@ ggplot(finalEatCensor, aes(x = as.factor(Temperature), fill = as.factor(binaryfe
   ylab("Percentage (%)") +
   ggtitle("Percentage of Whether the Crab Ate or Not")
 
+data2 <- subset(data, data$Species.x == "CI")
+
 ggplot(aes(x = as.factor(Temperature), y = (proportion.eaten)), data = data2) + 
   geom_boxplot() +
   theme_classic() +
@@ -1683,80 +1632,71 @@ ggplot(aes(x = as.factor(Temperature), y = (proportion.eaten)), data = data2) +
 
 ```
 
-Mapping Predictions
-
+Using Firth for Eat or Do Not Eat Modeling
 ```{R}
-# realistic temperature range
-temp_seq <- seq(min(data$Temperature), max(data$Temperature), length.out = 100)
+#using 
+finalEatCensorold <- finalEatCensor
 
-# new data frame for predictions
-pred_df <- expand.grid(
-  Temperature = temp_seq,
-  Species.x = c("CI", "CM", "HS"),
-  Period = as.factor(1)  # pick a period to hold constant
-)
+library(dplyr)
 
-pred_link <- predict(pos_model, newdata = pred_df, type = "link", se.fit = TRUE, re.form = NA)
+#creating a test zero point for the censor model
+#finalEatCensor <- finalEatCensor %>%
+#  add_row(
+#    Species.x = "CM",
+#    Temperature = 18,
+#    binaryfed = 0,
+#    Period = 1,
+#    runID = "22_1"
+#  )
 
-pred_df <- pred_df %>%
-  mutate(
-    fit_link = pred_link$fit,
-    se_link = pred_link$se.fit,
-    proportion_eaten = 1 / fit_link,
-    lower = 1 / (fit_link + 1.96 * se_link),  # note: bounds flip because 1/x is decreasing
-    upper = 1 / (fit_link - 1.96 * se_link)
-  )
+all.mod <- brglm(binaryfed ~ Species.x*Temperature*as.factor(Period), family = binomial, data = finalEatCensor, na.action = "na.fail")
+dredge(all.mod, rank = "AICc")
 
-ggplot(pred_df, aes(x = Temperature, y = proportion_eaten, color = Species.x)) +
-  geom_point(data = data, aes(x = Temperature, y = proportion.eaten, color = Species.x),
-             position = position_jitter(width = 0.1), alpha = 0.5, inherit.aes = FALSE) +
-  geom_line(linewidth = 1.2) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = Species.x), alpha = 0.2, color = NA) +
-  theme_classic() +
-  labs(color = "Species") +
-  ggtitle("Predicted Proportion Eaten Across Temperature") +
-  scale_color_manual(limits = c("HS", "CM", "CI"),
-                     values = c("CI" = "darkorange", "CM" = "darkgreen", "HS" = "darkred"),
-                     labels = c("CI" = "Rock Crab", "CM" = "Green Crab", "HS" = "Asian Shore Crab")) +
-  scale_fill_manual(values = c("CI" = "darkorange", "CM" = "darkgreen", "HS" = "darkred")) +
-  guides(fill = "none") +
-  theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5)) +
-  xlab("Temperature (°C)") +
-  ylab("Predicted Proportion (% Body Weight) Eaten")+scale_y_continuous(trans = "log10")
+#model is better without period, additionally there is an interaction between species and temperature
 
-#Rock crab prediction looks different from what we would expect (curve is different, try doing only rock crabs.)
+best.mod <- brglm(binaryfed ~ Species.x*Temperature, family = binomial, data = finalEatCensor, na.action = "na.fail")
+summary(best.mod)
 
-temp_seq <- seq(min(data2$Temperature), max(data2$Temperature), length.out = 100)
+#what's the best way to create diagnostic plots for this?
 
-# new data frame for predictions
-pred_df <- data.frame(
-  Temperature = temp_seq,
-  temp_squared = temp_seq^2
-)
+newdat <- NULL
 
-pred_link <- predict(pos_model2, newdata = pred_df, se.fit = TRUE, re.form = NA)
+finalEatCensor$Species.x <- factor(finalEatCensor$Species.x)
+newdat <- expand.grid(Temperature = seq(min(finalEatCensor$Temperature), max(finalEatCensor$Temperature), length.out = 100), Species.x = levels(finalEatCensor$Species.x))
+newdat$Species.x <- factor(newdat$Species.x, levels = levels(finalEatCensor$Species.x))
+newdat$pred <- predict(best.mod, newdata = newdat, type = "response")
 
-pred_df <- pred_df %>%
-  mutate(
-    fit = pred_link$fit,
-    se = pred_link$se.fit,
-    lower = fit - 1.96 * se,
-    upper = fit + 1.96 * se,
-    proportion_eaten = fit
-  )
+ggplot(finalEatCensor, aes(x = Temperature, y = binaryfed, color = Species.x)) +
+  geom_point(position = position_jitter(height = 0.05), alpha = 0.6) +
+  geom_line(data = newdat, aes(x = Temperature, y = pred, color = Species.x), linewidth = 1) +
+  scale_y_continuous(limits = c(0, 1)) + 
+  ggtitle("Predicted Eat or Didn't Eat") + 
+  scale_color_manual(values = c("CM" = "darkgreen",
+                                "HS" = "darkred",
+                                "CI" = "darkorange"))
 
-ggplot(aes(x = Temperature, y = proportion.eaten), data = data2) +
-  geom_point() +
-  geom_ribbon(data = pred_df, aes(x = Temperature, ymin = lower, ymax = upper),
-              alpha = 0.2, inherit.aes = FALSE) +
-  geom_line(data = pred_df, aes(x = Temperature, y = proportion_eaten),
-            linewidth = 1.2, inherit.aes = FALSE) +
-  theme_classic() +
-  xlab("Temperature (°C)") +
-  ylab("Proportion Eaten") + 
-  ggtitle("Predicted Amount Eaten for Atlantic Rock Crabs")
+finalEatCensor <- finalEatCensorold
 
-#Survival binary data
+#-----------------------------------
+
+#model fails due to compelte separation
+all.zero <- glmmTMB(binaryfed ~ Species.x*Temperature*as.factor(Period) + 
+                        (1 | runID), family = binomial, data = finalEatCensor, na.action = "na.fail")
+dredge(all.zero, rank = "AICc")
+
+
+#same issue with no 0 values in green crabs
+summary(zero_model)
+# Simulate DHARMa residuals
+sim_res_zero <- simulateResiduals(fittedModel = zero_model, n = 1000)
+# Basic diagnostic plots
+plot(sim_res_zero)                  # uniformity, QQ, residuals vs predicted
+plot(sim_res_zero, type = "predicted") # residuals vs fitted values
+# Test for over/underdispersion and zero-inflation
+testDispersion(sim_res_zero)
+testZeroInflation(sim_res_zero)  # should be low for positive model
+
+#binary data
 library(dplyr)
 
 temp_seq <- seq(
@@ -1791,6 +1731,9 @@ pred_df <- pred_df |>
 
 library(ggplot2)
 
+pred_df$Species.x <- factor(pred_df$Species.x, levels = c("HS", "CM", "CI"))
+finalEatCensor$Species.x <- factor(finalEatCensor$Species.x, levels = c("HS", "CM", "CI"))
+
 ggplot(pred_df, aes(x = Temperature, y = prob, color = Species.x)) +
   geom_point(data = finalEatCensor, aes(x = Temperature, y = binaryfed, color = Species.x),
              position = position_jitter(height = 0.1, width = 0.25),
@@ -1818,6 +1761,199 @@ ggplot(pred_df, aes(x = Temperature, y = prob, color = Species.x)) +
   ggtitle("Predicted Probability of a Crab Eating at Temperature") +
   theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5))
 
+```
+Positive Model
+
+```{R}
+#model creations
+#Amount Eaten with log_mass_bs --------------------------------------------------------------------
+library(DHARMa)
+all.mod1 <- glm(amount.eaten ~ Species.x*Temperature*as.factor(Period) + log_mass_bs + log_mass_ws, family = Gamma(link = "log"), data = data, na.action = "na.fail")
+dredge(all.mod1, rank = "AICc")
+
+#best model, out of Gamma(log), and Gaussian - diagnostic plots look "okay"
+best.mod1 <- glm(amount.eaten ~ Species.x*Temperature + log_mass_ws, family = Gamma(link = "identity"), data = data, na.action = "na.fail")
+summary(best.mod1)
+sim_res_pos <- simulateResiduals(fittedModel = best.mod1, n = 1000)
+plot(sim_res_pos) # residuals vs fitted values
+testDispersion(sim_res_pos)
+testZeroInflation(sim_res_pos)  # should be low for positive model
+testOutliers(sim_res_pos)
+
+#Amount Eaten with log_mass_bs and squared --------------------------------------------------------------------
+library(DHARMa)
+all.mod <- glm(amount.eaten ~ Species.x*Temperature*as.factor(Period) + log_mass_bs + log_mass_ws + temp_squared, family = Gamma(link = "log"), data = data, na.action = "na.fail")
+dredge(all.mod, rank = "AICc")
+
+#best model out of all the families, ranked low on the dredge but still within delta 2. Also diagnostic plots did not look good
+best.mod <- glm(amount.eaten ~ Species.x*Temperature + log_mass_ws + temp_squared, family = Gamma(link = "identity"), data = data, na.action = "na.fail")
+summary(best.mod)
+sim_res_pos <- simulateResiduals(fittedModel = best.mod, n = 1000)
+plot(sim_res_pos) # residuals vs fitted values
+testDispersion(sim_res_pos)
+testZeroInflation(sim_res_pos)  # should be low for positive model
+testOutliers(sim_res_pos)
+
+#Proportion Eaten ----------------------------------------------------------------
+
+all.mod2 <- glm(proportion.eaten ~ Species.x*Temperature*as.factor(Period) + log_mass_bs + log_mass_ws, family = Gamma(link = "log"), data = data, na.action = "na.fail")
+dredge(all.mod2, rank = "AICc")
+
+#best model, compared to Gaussian and link = identity (looks okay...)
+best.mod2 <- glm(proportion.eaten ~ Species.x*Temperature + log_mass_ws, family = Gamma(link = "log"), data = data, na.action = "na.fail")
+summary(best.mod2)
+
+sim_res_pos <- simulateResiduals(fittedModel = best.mod2, n = 1000)
+plot(sim_res_pos) # residuals vs fitted values
+testDispersion(sim_res_pos)
+testZeroInflation(sim_res_pos)  # should be low for positive model
+testOutliers(sim_res_pos)
+
+#Proportion Eaten With Temp Squared----------------------------------------------------------------
+
+# Hurdle model: zeros vs positives (binomial) + positive consumption (Gamma)
+all.mod <- glm(proportion.eaten ~ Species.x*Temperature + log_mass_ws + temp_squared, family = Gamma(link = "log"), data = data, na.action = "na.fail")
+dredge(all.mod, rank = "AICc")
+
+#Gamma log and identity look similar in terms of diagonistc plots, plots look "ok"
+best.mod <- glm(proportion.eaten ~ Species.x*Temperature + temp_squared, family = Gamma(link = "identity"), data = data, na.action = "na.fail")
+summary(best.mod)
+
+sim_res_pos <- simulateResiduals(fittedModel = best.mod, n = 1000)
+plot(sim_res_pos) # residuals vs fitted values
+testDispersion(sim_res_pos)
+testZeroInflation(sim_res_pos)  # should be low for positive model
+testOutliers(sim_res_pos)
+
+#PROPORTION EATEN  WITH TEMPERATURE SQUARED ----------------------------------
+
+data$prop_log <- log(data$proportion.eaten)
+
+#Gaussian family diagnostic looks "ok", QQ plot is poor
+pos_model <- glm(prop_log ~ as.numeric(Temperature)*Species.x + temp_squared + log_mass_ws, data = data, na.action = "na.fail")
+dredge(pos_model)
+
+pos_model <- glm(prop_log ~ as.numeric(Temperature)*Species.x,data = data, na.action = "na.fail")
+summary(pos_model)
+plot(pos_model)
+
+#model diagonistics look "ok" some outliers...
+sim_res_pos <- simulateResiduals(fittedModel = pos_model2, n = 1000)
+testDispersion(sim_res_pos)
+testZeroInflation(sim_res_pos)  # should be low for positive model
+testOutliers(sim_res_pos)
+
+#PROPORTION EATEN ROCK CRABS WITH TEMPERATUER SQUARED /Log proportion eaten----------------------------------
+
+data2 = subset(finalEatCensor, proportion.eaten > 0 & Species.x == "CI")
+data2$log_prop <- log(data2$proportion.eaten)
+# Hurdle model: zeros vs positives (binomial) + positive consumption (Gamma)
+data2$temp_squared <- data2$Temperature^2
+
+#SOLO ROCK CRAB MODEL log proportion - best preforming model
+pos_model2_rock <- glm(log_prop ~ as.numeric(Temperature) + temp_squared, data = data2, na.action = "na.fail")
+summary(pos_model2_rock)
+plot(pos_model2_rock)
+testDispersion(pos_model2_rock)
+
+#proportion eaten, best looking model diagnostic plot wise
+pos_model3 <- glm(proportion.eaten ~ as.numeric(Temperature) + temp_squared, family = Gamma(link = "identity"), data = data2, na.action = "na.fail")
+summary(pos_model3)
+sim_res_pos <- simulateResiduals(fittedModel = pos_model3, n = 1000)
+plot(sim_res_pos)
+
+AIC(pos_model2_rock, pos_model3)
+
+#PROPORTION EATEN shore and green CRABS WITH TEMPERATUER SQUARED /Log proportion eaten----------------------------------
+
+data2 = subset(finalEatCensor, proportion.eaten > 0 & (Species.x == "CM" | Species.x == "HS"))
+data2$log_prop <- log(data2$proportion.eaten)
+# Hurdle model: zeros vs positives (binomial) + positive consumption (Gamma)
+data2$temp_squared <- data2$Temperature^2
+
+#removed temperature squared - best preforming model
+pos_model2_rest <- glm(log_prop ~ as.numeric(Temperature)*Species.x, data = data2, na.action = "na.fail")
+summary(pos_model2_rest)
+plot(pos_model2_rest)
+testDispersion(pos_model2_rest)
+
+#proportion eaten, diagnostic plot fits!!!
+pos_model3 <- glm(proportion.eaten ~ as.numeric(Temperature)*Species.x, family = Gamma(link = "log"), data = data2, na.action = "na.fail")
+summary(pos_model3)
+sim_res_pos <- simulateResiduals(fittedModel = pos_model3, n = 1000)
+plot(sim_res_pos)
+testDispersion(pos_model3)
+
+#pos_model 2 is the best
+AIC(pos_model2_rest, pos_model3)
+
+#graphing the model-----------------------------------------------
+
+# ---- Predictions for Rock Crab (pos_model2_rock) ----
+temp_seq_rock <- seq(18, 26, length.out = 100)
+
+pred_rock <- data.frame(
+  Temperature = temp_seq_rock,
+  temp_squared = temp_seq_rock^2,
+  Species.x = "CI"
+)
+
+pred_link_rock <- predict(pos_model2_rock, newdata = pred_rock, se.fit = TRUE)
+pred_rock$fit      <- exp(pred_link_rock$fit)
+pred_rock$lwr      <- exp(pred_link_rock$fit - 1.96 * pred_link_rock$se.fit)
+pred_rock$upr      <- exp(pred_link_rock$fit + 1.96 * pred_link_rock$se.fit)
+
+# ---- Predictions for CM and HS (pos_model2_rest) ----
+temp_seq_rest <- seq(18, 26, length.out = 100)
+
+pred_rest <- expand.grid(
+  Temperature = temp_seq_rest,
+  Species.x = c("CM", "HS")
+)
+pred_rest$temp_squared <- pred_rest$Temperature^2
+
+pred_link_rest <- predict(pos_model2_rest, newdata = pred_rest, se.fit = TRUE)
+pred_rest$fit <- exp(pred_link_rest$fit)
+pred_rest$lwr <- exp(pred_link_rest$fit - 1.96 * pred_link_rest$se.fit)
+pred_rest$upr <- exp(pred_link_rest$fit + 1.96 * pred_link_rest$se.fit)
+
+# ---- Combine predictions ----
+pred_all <- rbind(pred_rock, pred_rest)
+
+# ---- Raw data for both datasets ----
+raw_rock <- subset(finalEatCensor, proportion.eaten > 0 & Species.x == "CI")
+raw_rest <- subset(finalEatCensor, proportion.eaten > 0 & Species.x %in% c("CM", "HS"))
+raw_all  <- rbind(raw_rock, raw_rest)
+
+# ---- Plot ----
+ggplot() +
+  geom_point(data = raw_all,
+             aes(x = Temperature, y = proportion.eaten, color = Species.x),
+             position = position_jitter(width = 0.2), alpha = 0.4) +
+  geom_ribbon(data = pred_all,
+              aes(x = Temperature, ymin = lwr, ymax = upr, fill = Species.x),
+              alpha = 0.2, color = NA) +
+  geom_line(data = pred_all,
+            aes(x = Temperature, y = fit, color = Species.x),
+            linewidth = 1.2) +
+  scale_color_manual(
+    limits = c("HS", "CM", "CI"),  # controls legend order
+    values = c("CI" = "darkorange", "CM" = "darkgreen", "HS" = "darkred"),
+    labels = c("CI" = "Rock Crab", "CM" = "Green Crab", "HS" = "Asian Shore Crab"),
+    name = "Species"
+  ) +
+  scale_fill_manual(
+    values = c("CI" = "darkorange", "CM" = "darkgreen", "HS" = "darkred"),
+    guide = "none"
+  ) +
+  scale_x_continuous(breaks = c(18, 20, 22, 24, 26)) +
+  xlab("Temperature (°C)") +
+  ylab("Log Proportion Eaten (Amount Eaten over Wet Weight") +
+  ggtitle("Predicted Proportion Eaten Across Temperature") +
+  theme_classic() +
+  theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5))+
+  scale_y_continuous(trans = "log",
+                   labels = scales::label_number(accuracy = 0.001))
 ```
 
 The normal GLM fit the best; however, it ranked lower on the AIC. There were other higher ranking models according to the AIC but the diagnostic plots proved problematic. Models okay, let's compare these to the inclusive model and see how they fit over that data.
