@@ -456,6 +456,7 @@ ggplot(holddf, aes(x = Temperature, y = dead)) +
 # First, build newdat for Irroratus only (your existing model code stays the same)
 holddf <- subset(master, master$Species == "Irroratus")
 best.mod <- brglm(dead ~ Temperature, family = binomial, data = holddf, na.action = "na.fail")
+summary(best.mod)
 
 newdat <- data.frame(Temperature = seq(min(holddf$Temperature), max(holddf$Temperature), length.out = 100))
 pred_link <- predict(best.mod, newdata = newdat, type = "link", se.fit = TRUE)
@@ -1666,14 +1667,32 @@ newdat <- expand.grid(Temperature = seq(min(finalEatCensor$Temperature), max(fin
 newdat$Species.x <- factor(newdat$Species.x, levels = levels(finalEatCensor$Species.x))
 newdat$pred <- predict(best.mod, newdata = newdat, type = "response")
 
+preds <- predict(best.mod, newdata = newdat, type = "response", se.fit = TRUE)
+newdat$pred  <- preds$fit
+newdat$lower <- pmax(preds$fit - 1.96 * preds$se.fit, 0)
+newdat$upper <- pmin(preds$fit + 1.96 * preds$se.fit, 1)  # cap at 1 for probability
+
 ggplot(finalEatCensor, aes(x = Temperature, y = binaryfed, color = Species.x)) +
-  geom_point(position = position_jitter(height = 0.05), alpha = 0.6) +
+  geom_point(position = position_jitter(width = .45, height = 0.05), alpha = 0.6) +
   geom_line(data = newdat, aes(x = Temperature, y = pred, color = Species.x), linewidth = 1) +
-  scale_y_continuous(limits = c(0, 1)) + 
+  geom_ribbon(data = newdat, aes(x = Temperature, ymin = lower, ymax = upper, fill = Species.x),
+            alpha = 0.2, color = NA, inherit.aes = FALSE) +
+  scale_y_continuous(breaks = c(0, 1), labels = c("Didn't Eat", "Did Eat"))+ 
+  scale_x_continuous(breaks = c(18, 20, 22, 24, 26))+
   ggtitle("Predicted Eat or Didn't Eat") + 
-  scale_color_manual(values = c("CM" = "darkgreen",
+  scale_fill_manual(name = "Species",
+                  values = c("CM" = "darkgreen", "HS" = "darkred", "CI" = "darkorange"),
+                  breaks = c("HS", "CM", "CI"),
+                  labels = c("Asian Shore Crab", "Green Crab", "Rock Crab"))+
+  scale_color_manual(name = "Species",
+                     values = c("CM" = "darkgreen",
                                 "HS" = "darkred",
-                                "CI" = "darkorange"))
+                                "CI" = "darkorange"),
+                     breaks = c("HS", "CM", "CI"),
+                     labels = c("Asian Shore Crab", "Green Crab", "Rock Crab"))+
+  xlab("Temperature (°C)")+
+  ylab("")+
+  ggtitle("")+theme_classic()
 
 finalEatCensor <- finalEatCensorold
 
@@ -1766,13 +1785,60 @@ Positive Model
 
 ```{R}
 #model creations
-#Amount Eaten with log_mass_bs --------------------------------------------------------------------
+#Amount Eaten with log_mass_bs -------------------------------------------------------------------- OK MODEL - potential winner
 library(DHARMa)
-all.mod1 <- glm(amount.eaten ~ Species.x*Temperature*as.factor(Period) + log_mass_bs + log_mass_ws, family = Gamma(link = "log"), data = data, na.action = "na.fail")
+all.mod1 <- glmer(amount.eaten ~ Species.x*Temperature*as.factor(Period) + log_mass_bs + log_mass_ws +
+                    (1 | runID) + (1 | ID)
+                  , family = Gamma(link = "log"), data = data, na.action = "na.fail")
 dredge(all.mod1, rank = "AICc")
 
+data$temp_squared <- data$Temperature^2
+data$temp_sq_CI <- ifelse(data$Species.x == "CI", data$temp_squared, 0) 
+#the code above creates a temperature squared value for CI and not CM or HS (gives them a fat 0)
+#when the model calculates the number, CM and HS are seen as not to have a quadratic term
+
+#log_mass_ws_sc -> larger individuals will eat more (theory) therefore accounting for size is important if using amount eaten.
+#we log the mass because this is a truer representation to what we see in nature (a crab twice as heavy doesn't eat twice as much, the relationship is more logged)
+#removing log_mass_ws_sc only yields signfiicant results/differences at 24C, "At 24°C specifically, larger crabs are eating meaningfully more than smaller crabs, and without mass in the model that variation gets dumped into the residuals."
+
+#log_mass_ws_sc squared -> relationship between mass and consumption isn't linear, larger crabs consumption is more, but not directly linear to size.
+
+#1 / ID accounts for individual variance among crabs
+
+#dispformula -> each species has it's own variance (distance from the mean)
+
+# Center temperature before squaring
+mean_temp <- mean(data$Temperature)
+
+data$temp_sq_CI <- ifelse(data$Species.x == "CI", 
+                          (data$Temperature - mean_temp)^2, 0)
+
+# Refit model with centered quadratic
+best.mod1 <- glmmTMB(
+  amount.eaten ~ Species.x * Temperature + temp_sq_CI + 
+                log_mass_ws_sc + log_mass_ws_sc2 + 
+                as.factor(Period) + (1 | ID),
+  family = gaussian(link = "log"),
+  dispformula = ~ Species.x,
+  data = data,
+  na.action = "na.fail"
+)
+
+#runID varaince is essentially zero "runID    (Intercept) 1.613e-10 1.27e-05"
+#ID is meaningful (more)
+
+summary(best.mod1)
+sim_res <- simulateResiduals(fittedModel = best.mod1, n = 1000)
+plot(sim_res)
+testUniformity(sim_res)
+testDispersion(sim_res)
+plotResiduals(sim_res, data$Temperature)
+plotResiduals(sim_res, data$Species.x)
+plotResiduals(sim_res, data$log_mass_ws_sc)
+diagnose(best.mod1)
+
 #best model, out of Gamma(log), and Gaussian - diagnostic plots look "okay"
-best.mod1 <- glm(amount.eaten ~ Species.x*Temperature + log_mass_ws, family = Gamma(link = "identity"), data = data, na.action = "na.fail")
+best.mod1 <- glm(amount.eaten ~ Species.x*Temperature + log_mass_ws, family = gaussian(link = "log"), data = data, na.action = "na.fail")
 summary(best.mod1)
 sim_res_pos <- simulateResiduals(fittedModel = best.mod1, n = 1000)
 plot(sim_res_pos) # residuals vs fitted values
@@ -1780,52 +1846,60 @@ testDispersion(sim_res_pos)
 testZeroInflation(sim_res_pos)  # should be low for positive model
 testOutliers(sim_res_pos)
 
-#Amount Eaten with log_mass_bs and squared --------------------------------------------------------------------
+#Amount Eaten with log_mass_bs and squared -------------------------------------------------------------------- "OK" model
 library(DHARMa)
 all.mod <- glm(amount.eaten ~ Species.x*Temperature*as.factor(Period) + log_mass_bs + log_mass_ws + temp_squared, family = Gamma(link = "log"), data = data, na.action = "na.fail")
 dredge(all.mod, rank = "AICc")
 
 #best model out of all the families, ranked low on the dredge but still within delta 2. Also diagnostic plots did not look good
-best.mod <- glm(amount.eaten ~ Species.x*Temperature + log_mass_ws + temp_squared, family = Gamma(link = "identity"), data = data, na.action = "na.fail")
-summary(best.mod)
-sim_res_pos <- simulateResiduals(fittedModel = best.mod, n = 1000)
-plot(sim_res_pos) # residuals vs fitted values
-testDispersion(sim_res_pos)
-testZeroInflation(sim_res_pos)  # should be low for positive model
-testOutliers(sim_res_pos)
-
-#Proportion Eaten ----------------------------------------------------------------
-
-all.mod2 <- glm(proportion.eaten ~ Species.x*Temperature*as.factor(Period) + log_mass_bs + log_mass_ws, family = Gamma(link = "log"), data = data, na.action = "na.fail")
-dredge(all.mod2, rank = "AICc")
-
-#best model, compared to Gaussian and link = identity (looks okay...)
-best.mod2 <- glm(proportion.eaten ~ Species.x*Temperature + log_mass_ws, family = Gamma(link = "log"), data = data, na.action = "na.fail")
+best.mod2 <- glm(amount.eaten ~ Species.x*Temperature + log_mass_ws + temp_squared, family = Gamma(link = "identity"), data = data, na.action = "na.fail")
 summary(best.mod2)
-
 sim_res_pos <- simulateResiduals(fittedModel = best.mod2, n = 1000)
 plot(sim_res_pos) # residuals vs fitted values
 testDispersion(sim_res_pos)
 testZeroInflation(sim_res_pos)  # should be low for positive model
 testOutliers(sim_res_pos)
 
-#Proportion Eaten With Temp Squared----------------------------------------------------------------
+#Proportion Eaten ---------------------------------------------------------------- OK MODEL
 
-# Hurdle model: zeros vs positives (binomial) + positive consumption (Gamma)
-all.mod <- glm(proportion.eaten ~ Species.x*Temperature + log_mass_ws + temp_squared, family = Gamma(link = "log"), data = data, na.action = "na.fail")
-dredge(all.mod, rank = "AICc")
+all.mod3 <- glm(proportion.eaten ~ Species.x*Temperature*as.factor(Period) + log_mass_bs + log_mass_ws, family = Gamma(link = "log"), data = data, na.action = "na.fail")
+dredge(all.mod3, rank = "AICc")
 
-#Gamma log and identity look similar in terms of diagonistc plots, plots look "ok"
-best.mod <- glm(proportion.eaten ~ Species.x*Temperature + temp_squared, family = Gamma(link = "identity"), data = data, na.action = "na.fail")
-summary(best.mod)
+#best model, compared to Gaussian and link = identity (looks okay...)
+best.mod3 <- glm(proportion.eaten ~ Species.x*Temperature + log_mass_ws, family = Gamma(link = "log"), data = data, na.action = "na.fail")
+summary(best.mod3)
 
-sim_res_pos <- simulateResiduals(fittedModel = best.mod, n = 1000)
+sim_res_pos <- simulateResiduals(fittedModel = best.mod3, n = 1000)
 plot(sim_res_pos) # residuals vs fitted values
 testDispersion(sim_res_pos)
 testZeroInflation(sim_res_pos)  # should be low for positive model
 testOutliers(sim_res_pos)
 
-#PROPORTION EATEN  WITH TEMPERATURE SQUARED ----------------------------------
+#Proportion Eaten With Temp Squared---------------------------------------------------------------- OK MODEL
+
+# Hurdle model: zeros vs positives (binomial) + positive consumption (Gamma)
+all.mod4 <- glm(proportion.eaten ~ Species.x*Temperature + log_mass_ws + temp_squared, family = Gamma(link = "log"), data = data, na.action = "na.fail")
+dredge(all.mod4, rank = "AICc")
+
+#Gamma log and identity look similar in terms of diagonistc plots, plots look "ok"
+best.mod4 <- glm(proportion.eaten ~ Species.x*Temperature + temp_squared, family = Gamma(link = "identity"), data = data, na.action = "na.fail")
+summary(best.mod4)
+
+sim_res_pos <- simulateResiduals(fittedModel = best.mod4, n = 1000)
+plot(sim_res_pos) # residuals vs fitted values
+testDispersion(sim_res_pos)
+testZeroInflation(sim_res_pos)  # should be low for positive model
+testOutliers(sim_res_pos)
+
+#COMPARING THE TOP 4 MODELS------------------------------------------------------
+
+AIC(best.mod1, best.mod2, best.mod3, best.mod4)
+#1 and 2 win
+
+summary(best.mod1)
+summary(best.mod2)
+
+#PROPORTION EATEN  WITH TEMPERATURE SQUARED ---------------------------------- POOR MODEL DIAGNOSTICS
 
 data$prop_log <- log(data$proportion.eaten)
 
@@ -1837,13 +1911,9 @@ pos_model <- glm(prop_log ~ as.numeric(Temperature)*Species.x,data = data, na.ac
 summary(pos_model)
 plot(pos_model)
 
-#model diagonistics look "ok" some outliers...
-sim_res_pos <- simulateResiduals(fittedModel = pos_model2, n = 1000)
-testDispersion(sim_res_pos)
-testZeroInflation(sim_res_pos)  # should be low for positive model
-testOutliers(sim_res_pos)
-
+#SEPARATING THE MODEL BETWEEN ROCK CRABS AND REST MAKES THE ROCK CRAB MODEL LOOK REALLY GOOD, BUT ASIAN SHORE CRAB AND GREEN CRAB FAILS
 #PROPORTION EATEN ROCK CRABS WITH TEMPERATUER SQUARED /Log proportion eaten----------------------------------
+#-IGNORE THIS SECTION BELOW-------------------------------------------------------------
 
 data2 = subset(finalEatCensor, proportion.eaten > 0 & Species.x == "CI")
 data2$log_prop <- log(data2$proportion.eaten)
@@ -1886,74 +1956,215 @@ testDispersion(pos_model3)
 
 #pos_model 2 is the best
 AIC(pos_model2_rest, pos_model3)
-
+#-IGNORE THIS SECTION ABOVE-------------------------------------------------------------
 #graphing the model-----------------------------------------------
+#--------------------------------------
 
-# ---- Predictions for Rock Crab (pos_model2_rock) ----
-temp_seq_rock <- seq(18, 26, length.out = 100)
+#best model, let's try splitting it between rock and asian/green crab
+library(DHARMa)
+all.mod1 <- glm(amount.eaten ~ Species.x*Temperature*as.factor(Period) + log_mass_bs + log_mass_ws, family = Gamma(link = "log"), data = data, na.action = "na.fail")
+dredge(all.mod1, rank = "AICc")
 
-pred_rock <- data.frame(
-  Temperature = temp_seq_rock,
-  temp_squared = temp_seq_rock^2,
-  Species.x = "CI"
-)
+#best model, out of Gamma(log), and Gaussian - diagnostic plots look "okay"
+best.mod1 <- glm(amount.eaten ~ Species.x*Temperature + log_mass_ws, family = Gamma(link = "identity"), data = data, na.action = "na.fail")
+summary(best.mod1)
+sim_res_pos <- simulateResiduals(fittedModel = best.mod1, n = 1000)
+plot(sim_res_pos) # residuals vs fitted values
+testDispersion(sim_res_pos)
+testZeroInflation(sim_res_pos)  # should be low for positive model
+testOutliers(sim_res_pos)
 
-pred_link_rock <- predict(pos_model2_rock, newdata = pred_rock, se.fit = TRUE)
-pred_rock$fit      <- exp(pred_link_rock$fit)
-pred_rock$lwr      <- exp(pred_link_rock$fit - 1.96 * pred_link_rock$se.fit)
-pred_rock$upr      <- exp(pred_link_rock$fit + 1.96 * pred_link_rock$se.fit)
+#ROCK CRAB ONLY
 
-# ---- Predictions for CM and HS (pos_model2_rest) ----
-temp_seq_rest <- seq(18, 26, length.out = 100)
+data2 = subset(finalEatCensor, proportion.eaten > 0 & Species.x == "CI")
+data2$temp_c <- scale(data2$Temperature, center = TRUE, scale = FALSE)
+data2$temp_squared <- data2$temp_c^2
+all.mod2 <- glm(amount.eaten ~ temp_c*as.factor(Period)*temp_squared + log_mass_ws, family = Gamma(link = "log"), data = data2, na.action = "na.fail")
+dredge(all.mod2, rank = "AICc")
 
-pred_rest <- expand.grid(
-  Temperature = temp_seq_rest,
-  Species.x = c("CM", "HS")
-)
-pred_rest$temp_squared <- pred_rest$Temperature^2
+#model 2
+best.mod2 <- glm(amount.eaten ~ temp_c+ temp_squared+ log_mass_ws, family = Gamma(link = "inverse"), data = data2, na.action = "na.fail")
+summary(best.mod2)
+sim_res_pos <- simulateResiduals(fittedModel = best.mod2, n = 1000)
+plot(sim_res_pos) # residuals vs fitted values
+testDispersion(sim_res_pos)
+testZeroInflation(sim_res_pos)  # should be low for positive model
+testOutliers(sim_res_pos)
 
-pred_link_rest <- predict(pos_model2_rest, newdata = pred_rest, se.fit = TRUE)
-pred_rest$fit <- exp(pred_link_rest$fit)
-pred_rest$lwr <- exp(pred_link_rest$fit - 1.96 * pred_link_rest$se.fit)
-pred_rest$upr <- exp(pred_link_rest$fit + 1.96 * pred_link_rest$se.fit)
+data2$temp_c <- as.numeric(scale(data2$Temperature, center = TRUE, scale = FALSE))
+data2$temp_squared <- data2$temp_c^2
 
-# ---- Combine predictions ----
-pred_all <- rbind(pred_rock, pred_rest)
+#model 3
+best.mod3 <- glm(amount.eaten ~ temp_c*temp_squared+ log_mass_ws, family = Gamma(link = "inverse"), data = data2, na.action = "na.fail")
+summary(best.mod3)
+sim_res_pos <- simulateResiduals(fittedModel = best.mod2, n = 1000)
+plot(sim_res_pos) # residuals vs fitted values
+testDispersion(sim_res_pos)
+testZeroInflation(sim_res_pos)  # should be low for positive model
+testOutliers(sim_res_pos)
 
-# ---- Raw data for both datasets ----
-raw_rock <- subset(finalEatCensor, proportion.eaten > 0 & Species.x == "CI")
-raw_rest <- subset(finalEatCensor, proportion.eaten > 0 & Species.x %in% c("CM", "HS"))
-raw_all  <- rbind(raw_rock, raw_rest)
+AIC(best.mod2, best.mod3)
 
-# ---- Plot ----
+#ASIAN SHORE CRAB AND GREEN CRAB ONLY
+
+data2 = subset(finalEatCensor, proportion.eaten > 0 & (Species.x == "CM" | Species.x == "HS"))
+
+#best model, out of Gamma(log), and Gaussian - diagnostic plots look "okay"
+best.mod1 <- glm(amount.eaten ~ Species.x*Temperature + log_mass_ws, family = Gamma(link = "identity"), data = data2, na.action = "na.fail")
+summary(best.mod1)
+sim_res_pos <- simulateResiduals(fittedModel = best.mod1, n = 1000)
+plot(sim_res_pos) # residuals vs fitted values
+testDispersion(sim_res_pos)
+testZeroInflation(sim_res_pos)  # should be low for positive model
+testOutliers(sim_res_pos)
+
+```
+
+Graphing the prediction
+```{R}
+# Build a separate prediction grid at exact temperatures
+pred_exact <- expand.grid(
+  Temperature = c(18, 20, 22, 24, 26),
+  Species.x = c("CI", "CM", "HS")
+) %>%
+  mutate(
+    temp_sq_CI      = ifelse(Species.x == "CI", 
+                             (Temperature - mean_temp)^2, 0),
+    log_mass_ws_sc  = 0,
+    log_mass_ws_sc2 = 0,
+    Period          = factor(1, levels = c(1, 2)),
+    ID              = NA
+  )
+
+# Get predictions
+pred_exact$fit_link <- predict(best.mod1, newdata = pred_exact,
+                               re.form = NA, allow.new.levels = TRUE)
+
+# Build model matrix and get SEs
+mm_exact <- model.matrix(~ Species.x * Temperature + temp_sq_CI + 
+                           log_mass_ws_sc + log_mass_ws_sc2 +
+                           as.factor(Period),
+                         data = pred_exact)
+
+vc <- vcov(best.mod1)$cond
+pred_exact$se_link <- sqrt(diag(mm_exact %*% vc %*% t(mm_exact)))
+pred_exact$fit     <- exp(pred_exact$fit_link)
+
+# Check it looks right
+pred_exact %>% select(Temperature, Species.x, fit, se_link)
+
+contrast_df <- pred_exact %>%
+  group_by(Temperature) %>%
+  summarise(
+    # CI vs CM
+    CI_CM_diff = fit_link[Species.x == "CI"] - fit_link[Species.x == "CM"],
+    CI_CM_se   = sqrt(se_link[Species.x == "CI"]^2 + se_link[Species.x == "CM"]^2),
+    CI_CM_z    = CI_CM_diff / CI_CM_se,
+    CI_CM_p    = 2 * pnorm(-abs(CI_CM_z)),
+    
+    # CI vs HS
+    CI_HS_diff = fit_link[Species.x == "CI"] - fit_link[Species.x == "HS"],
+    CI_HS_se   = sqrt(se_link[Species.x == "CI"]^2 + se_link[Species.x == "HS"]^2),
+    CI_HS_z    = CI_HS_diff / CI_HS_se,
+    CI_HS_p    = 2 * pnorm(-abs(CI_HS_z)),
+    
+    # CM vs HS
+    CM_HS_diff = fit_link[Species.x == "CM"] - fit_link[Species.x == "HS"],
+    CM_HS_se   = sqrt(se_link[Species.x == "CM"]^2 + se_link[Species.x == "HS"]^2),
+    CM_HS_z    = CM_HS_diff / CM_HS_se,
+    CM_HS_p    = 2 * pnorm(-abs(CM_HS_z))
+  ) %>%
+  # Bonferroni correction for 15 comparisons
+  mutate(
+    CI_CM_p_adj = pmin(CI_CM_p * 15, 1),
+    CI_HS_p_adj = pmin(CI_HS_p * 15, 1),
+    CM_HS_p_adj = pmin(CM_HS_p * 15, 1)
+  )
+
+# View results with ratios on original scale
+contrast_df %>%
+  mutate(
+    CI_CM_ratio = exp(CI_CM_diff),
+    CI_HS_ratio = exp(CI_HS_diff),
+    CM_HS_ratio = exp(CM_HS_diff)
+  ) %>%
+  select(Temperature,
+         CI_CM_ratio, CI_CM_p_adj,
+         CI_HS_ratio, CI_HS_p_adj,
+         CM_HS_ratio, CM_HS_p_adj)
+
+#PREDICTIONS
+
+# Rebuild prediction grid with centered quadratic
+pred_df <- expand.grid(
+  Temperature = temp_seq,
+  Species.x = c("CI", "CM", "HS")
+) %>%
+  mutate(
+    temp_sq_CI      = ifelse(Species.x == "CI", 
+                             (Temperature - mean_temp)^2, 0),
+    log_mass_ws_sc  = 0,
+    log_mass_ws_sc2 = 0,
+    Period          = factor(1, levels = c(1, 2)),
+    ID              = NA
+  )
+
+# Get predictions
+pred_df$fit_link <- predict(best.mod1, newdata = pred_df,
+                            re.form = NA, allow.new.levels = TRUE)
+
+# Build model matrix
+mm <- model.matrix(~ Species.x * Temperature + temp_sq_CI + 
+                     log_mass_ws_sc + log_mass_ws_sc2 +
+                     as.factor(Period),
+                   data = pred_df)
+
+# Calculate SE
+vc <- vcov(best.mod1)$cond
+pred_df$se_link <- sqrt(diag(mm %*% vc %*% t(mm)))
+
+# Back transform
+pred_df <- pred_df %>%
+  mutate(
+    fit = exp(fit_link),
+    lwr = exp(fit_link - 1.96 * se_link),
+    upr = exp(fit_link + 1.96 * se_link)
+  )
+
+# Check CI SE values now
+pred_df %>%
+  filter(Species.x == "CI") %>%
+  select(Temperature, fit, lwr, upr, se_link)
+
+# Plot on log scale to handle wide CIs
 ggplot() +
-  geom_point(data = raw_all,
-             aes(x = Temperature, y = proportion.eaten, color = Species.x),
+  geom_point(data = data,
+             aes(x = Temperature, y = amount.eaten, color = Species.x),
              position = position_jitter(width = 0.2), alpha = 0.4) +
-  geom_ribbon(data = pred_all,
+  geom_ribbon(data = pred_df,
               aes(x = Temperature, ymin = lwr, ymax = upr, fill = Species.x),
               alpha = 0.2, color = NA) +
-  geom_line(data = pred_all,
+  geom_line(data = pred_df,
             aes(x = Temperature, y = fit, color = Species.x),
             linewidth = 1.2) +
   scale_color_manual(
-    limits = c("HS", "CM", "CI"),  # controls legend order
+    limits = c("HS", "CM", "CI"),
     values = c("CI" = "darkorange", "CM" = "darkgreen", "HS" = "darkred"),
     labels = c("CI" = "Rock Crab", "CM" = "Green Crab", "HS" = "Asian Shore Crab"),
     name = "Species"
   ) +
   scale_fill_manual(
+    limits = c("HS", "CM", "CI"),
     values = c("CI" = "darkorange", "CM" = "darkgreen", "HS" = "darkred"),
     guide = "none"
   ) +
+  scale_y_log10(labels = scales::label_number(accuracy = 0.01)) +
   scale_x_continuous(breaks = c(18, 20, 22, 24, 26)) +
   xlab("Temperature (°C)") +
-  ylab("Log Proportion Eaten (Amount Eaten over Wet Weight") +
-  ggtitle("Predicted Proportion Eaten Across Temperature") +
+  ylab("Log10 Amount Eaten (g)") +
+  ggtitle("Predicted Amount Eaten Across Temperature") +
   theme_classic() +
-  theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5))+
-  scale_y_continuous(trans = "log",
-                   labels = scales::label_number(accuracy = 0.001))
+  theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5))
 ```
 
 The normal GLM fit the best; however, it ranked lower on the AIC. There were other higher ranking models according to the AIC but the diagnostic plots proved problematic. Models okay, let's compare these to the inclusive model and see how they fit over that data.
