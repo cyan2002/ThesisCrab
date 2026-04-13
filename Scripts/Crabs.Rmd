@@ -51,6 +51,10 @@ library(DHARMa)
 library(MuMIn)
 library(glmm)
 library(lmerTest)
+library(mgcv)
+library(ggplot2)
+library(mgcViz)
+library(gratia)
 setwd("/Users/chanceyan/Documents/R/ThesisCrab/Data")
 crabdata <- read.csv("Feeding.csv", h=T, stringsAsFactors = FALSE)
 death <- read.csv("DeathCount.csv", h=T, stringsAsFactors = FALSE)
@@ -1579,6 +1583,7 @@ sum(finalEatCensor$proportion.eaten == 0)
 
 finalEatCensor$binaryfed <- ifelse(finalEatCensor$amount.eaten > 0, 1, 0)
 finalEatCensor$logmass <- log(finalEatCensor$WW)
+
 finalEatCensor$log_mass_ws <- ave(
   finalEatCensor$logmass,
   finalEatCensor$Species.x,
@@ -1645,16 +1650,21 @@ ggplot(aes(x = WW, y = amount.eaten, color = Species.x), data = data) +
   facet_wrap(~Species.x, scales = "free")
 
 food.mod1 <- glmmTMB(amount.eaten ~ WW*as.factor(Period) + Species.x + (1 | ID), family = Gamma(link = "identity"), data = data, na.action = "na.fail")
-dredge(food.mod1)
+#dredge(food.mod1)
 
 
-AIC(food.mod1, food.mod2, food.mod3, food.mod4, food.mod5, food.mod6)
+#AIC(food.mod1, food.mod2, food.mod3, food.mod4, food.mod5, food.mod6)
 
-summary(food.mod1)
-sim_res_food <- simulateResiduals(fittedModel = food.mod1, n = 1000)
-plot(sim_res_food)
+#summary(food.mod1)
+#sim_res_food <- simulateResiduals(fittedModel = food.mod1, n = 1000)
+#plot(sim_res_food)
 
-
+ggplot(finalEatCensor, aes(x = as.factor(Temperature), y = log(amount.eaten), color = Species.x)) +
+  geom_boxplot() +
+  ylab("Amount Eaten (g)")+
+  ggtitle("Amount Eaten by Rock Crabs over Temperature")+
+  theme(legend.position = "none") +
+  facet_wrap(~Species.x)
 
 ```
 
@@ -1732,15 +1742,15 @@ dredge(all.zero, rank = "AICc")
 
 
 #same issue with no 0 values in green crabs
-summary(zero_model)
+#summary(zero_model)
 # Simulate DHARMa residuals
-sim_res_zero <- simulateResiduals(fittedModel = zero_model, n = 1000)
+#sim_res_zero <- simulateResiduals(fittedModel = zero_model, n = 1000)
 # Basic diagnostic plots
-plot(sim_res_zero)                  # uniformity, QQ, residuals vs predicted
-plot(sim_res_zero, type = "predicted") # residuals vs fitted values
+#plot(sim_res_zero)                  # uniformity, QQ, residuals vs predicted
+#plot(sim_res_zero, type = "predicted") # residuals vs fitted values
 # Test for over/underdispersion and zero-inflation
-testDispersion(sim_res_zero)
-testZeroInflation(sim_res_zero)  # should be low for positive model
+#testDispersion(sim_res_zero)
+#testZeroInflation(sim_res_zero)  # should be low for positive model
 
 #binary data
 library(dplyr)
@@ -1773,9 +1783,6 @@ pred_df <- pred_df |>
     lower    = plogis(fit_link - se_link),
     upper    = plogis(fit_link + se_link)
   )
-
-
-library(ggplot2)
 
 pred_df$Species.x <- factor(pred_df$Species.x, levels = c("HS", "CM", "CI"))
 finalEatCensor$Species.x <- factor(finalEatCensor$Species.x, levels = c("HS", "CM", "CI"))
@@ -1813,13 +1820,6 @@ ggplot(data, aes(x = log(WW), y = amount.eaten, color = Species.x))+geom_point()
 Positive Model GAM
 
 ```{R}
-# Load required packages
-library(mgcv)
-library(ggplot2)
-install.packages("mgcViz")
-library(mgcViz)
-
-
 data$Temperature <- as.numeric(data$Temperature)
 data$ID <- as.factor(data$ID)
 data$Species.x <- as.factor(data$Species.x)
@@ -1828,52 +1828,129 @@ data_pos <- subset(data, data$amount.eaten > 0)
 
 data$amount.eaten.log <- log(data$amount.eaten)
 
-gam_model <- gam(
-  amount.eaten.log ~ s(Temperature, by = Species.x, bs = "tp", k = 5)
-               + s(log_mass_ws, by = Species.x, bs = "tp", k = 10)
-               + Species.x
-               + s(ID, bs = "re"),
+gam_model <- gam(amount.eaten ~ s(Temperature, by = Species.x, bs = "tp", k = 5)
+                 + log_mass_ws
+                 + Species.x
+                 + s(ID, bs = "re"),
   data = data,
+  family = Gamma(link = "inverse"),
   method = "REML",
   na.action = "na.fail"
 )
 
+data$log_eaten_ws <- ave(
+  data$amount.eaten.log,
+  data$Species.x,
+  FUN = function(x) x - mean(x, na.rm = TRUE)
+)
+
+gam_model <- gam(log_eaten_ws ~ s(Temperature, by = Species.x, bs = "tp", k = 5)
+                 + log_mass_ws,
+  data = data,
+  family = gaussian(link = "inverse"),
+  method = "REML",
+  na.action = "na.fail"
+)
+
+
+par(mfrow = c(2,2))
+gam.check(gam_model)
+
+#GAMs punish for being "too" wiggly
 dredge(gam_model, rank = "AICc")
 
 summary(gam_model)
 
-gam.check(gam_model)
+#The next section covers smooth terms. For smooths coefficients are not printed. 
+#This is because each smooth has several coefficients - one for each basis function. 
+#Instead, the first column reads edf, which stands for effective degrees of freedom. 
+#This value represents the complexity of the smooth. An edf of 1 is equivalent to a 
+#straight line. An edf of 2 is equivalent to a quadratic curve, and so on, with higher 
+#edfs describing more wiggly curves.
+
+#A good way to interpret significance for smooth terms in GAMs is this: 
+#a significant smooth term is one where you can not draw a horizontal line 
+#through the 95% confidence interval.
+plots <- draw(gam_model, residuals = TRUE, ci_level = 0.95, rug = TRUE)
+for(i in 1:7){
+  print(plots[[i]])
+}
+
+
 sim_res_GAM <- simulateResiduals(fittedModel = gam_model, n = 1000)
 plot(sim_res_GAM)
 testDispersion(sim_res_GAM)
 
-newdata <- expand.grid(
-  Temperature = c(18, 20, 22, 24, 26),
-  Species.x   = c("CI", "CM", "HS"),
-  log_mass_ws = 0  # centered around mean, so 0 = mean
+#you could get a GAM model that preforms ok on DHARMa diagnostics and fails some gam.check values
+#OR
+#you could get a GAM model that preforms poorly on DHARMa diagnostics, but passes it's gam.check values
+
+#between adding smoother/interaction for weight and species
+#what do the relationships look like?
+#dredge supports the GAM model with good DHARMa diagnostics
+
+# Build prediction grid
+pred_grid <- expand.grid(
+  Temperature  = seq(min(data$Temperature), max(data$Temperature), length.out = 200),
+  Species.x    = unique(data$Species.x),
+  log_mass_ws  = mean(data$log_mass_ws, na.rm = TRUE),
+  ID           = data$ID[1]  # Dummy ID; excluded via exclude below
 )
 
-preds <- predict(gam_model, newdata = newdata, se.fit = TRUE)
-newdata$fit    <- preds$fit
-newdata$se     <- preds$se.fit
-newdata$upper  <- newdata$fit + 1.96 * newdata$se
-newdata$lower  <- newdata$fit - 1.96 * newdata$se
+# Predict on response scale, population-level (no random effects)
+preds <- predict(
+  gam_model,
+  newdata  = pred_grid,
+  type     = "response",
+  exclude  = "s(ID)",
+  se.fit   = TRUE
+)
 
-ggplot(newdata, aes(x = Temperature, y = fit, color = Species.x, fill = Species.x)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.2, color = NA) +
-  geom_line(linewidth = 1) +
-  geom_point(size = 2.5) +
+pred_grid$fit    <- preds$fit
+pred_grid$se     <- preds$se.fit
+pred_grid$lower  <- pred_grid$fit - 1.96 * pred_grid$se
+pred_grid$upper  <- pred_grid$fit + 1.96 * pred_grid$se
+
+# Plot
+ggplot() +
+  geom_point(
+    data = data,
+    aes(x = Temperature, y = amount.eaten, color = Species.x),
+    alpha    = 0.4,
+    size     = 1.5,
+    position = position_jitter(width = 0.2, height = 0)
+  ) +
+  geom_ribbon(
+    data = pred_grid,
+    aes(x = Temperature, ymin = lower, ymax = upper, fill = Species.x),
+    alpha = 0.2
+  ) +
+  geom_line(
+    data = pred_grid,
+    aes(x = Temperature, y = fit, color = Species.x),
+    linewidth = 1.2
+  ) +
+  scale_color_manual(
+    name   = "Species",
+    values = c("CI" = "darkorange", "CM" = "darkgreen", "HS" = "darkred"),
+    labels = c("CI" = "Rock Crab", "CM" = "Green Crab", "HS" = "Asian Shore Crab")
+  ) +
+  scale_fill_manual(
+    name   = "Species",
+    values = c("CI" = "darkorange", "CM" = "darkgreen", "HS" = "darkred"),
+    labels = c("CI" = "Rock Crab", "CM" = "Green Crab", "HS" = "Asian Shore Crab")
+  ) +
   scale_x_continuous(breaks = c(18, 20, 22, 24, 26)) +
   labs(
     x     = "Temperature (°C)",
-    y     = "Predicted amount eaten",
-    color = "Species",
-    fill  = "Species"
+    y     = "Amount Eaten",
+    title = "GAM Predicted Amount Eaten by Temperature and Species"
   ) +
   theme_classic() +
-  theme(legend.position = "top")
-
-
+  theme(
+    legend.position = "right",
+    plot.title      = element_text(hjust = 0.5)
+  )
 ```
 
 
