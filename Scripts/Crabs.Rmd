@@ -1816,6 +1816,8 @@ ggplot(pred_df, aes(x = Temperature, y = prob, color = Species.x)) +
 
 ggplot(data, aes(x = log(WW), y = amount.eaten, color = Species.x))+geom_point()+geom_smooth(method="loess")
 
+ggplot(data, aes(x = as.factor(Temperature), y = amount.eaten, fill = Species.x)) + geom_boxplot()
+
 ```
 Positive Model GAM
 
@@ -1933,12 +1935,12 @@ ggplot() +
   scale_color_manual(
     name   = "Species",
     values = c("CI" = "darkorange", "CM" = "darkgreen", "HS" = "darkred"),
-    labels = c("CI" = "Rock Crab", "CM" = "Green Crab", "HS" = "Asian Shore Crab")
+    labels = c("CI" = "Cancer irroratus", "CM" = "Carcinus meanus", "HS" = "Hemigrapsus sanguineus")
   ) +
   scale_fill_manual(
     name   = "Species",
     values = c("CI" = "darkorange", "CM" = "darkgreen", "HS" = "darkred"),
-    labels = c("CI" = "Rock Crab", "CM" = "Green Crab", "HS" = "Asian Shore Crab")
+    labels = c("CI" = "Cancer irroratus", "CM" = "Carcinus meanus", "HS" = "Hemigrapsus sanguineus")
   ) +
   scale_x_continuous(breaks = c(18, 20, 22, 24, 26)) +
   labs(
